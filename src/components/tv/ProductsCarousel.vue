@@ -1,0 +1,224 @@
+<template>
+  <div 
+    class="products-carousel"
+    :style="{ background: backgroundColor }"
+  >
+    <div
+      v-if="activeProducts.length === 0"
+      class="no-products"
+    >
+      <p>Nenhum produto em destaque</p>
+    </div>
+    <div
+      v-else
+      class="carousel-container"
+    >
+      <transition
+        name="slide"
+        mode="out-in"
+      >
+        <div
+          v-if="currentProduct"
+          :key="currentIndex"
+          class="product-card"
+        >
+          <div class="product-image">
+            <img
+              :src="currentProduct.image_url"
+              :alt="currentProduct.name"
+            >
+            <img
+              v-if="currentProduct.logo_url"
+              :src="currentProduct.logo_url"
+              alt="Logo"
+              class="restaurant-logo"
+            >
+          </div>
+          <div class="product-info">
+            <h2 class="product-name">
+              {{ currentProduct.name }}
+            </h2>
+            <p class="product-price">
+              R$ {{ formatPrice(currentProduct.price) }}
+            </p>
+          </div>
+        </div>
+      </transition>
+      <div class="carousel-indicators">
+        <span
+          v-for="(_, index) in activeProducts"
+          :key="index"
+          class="indicator"
+          :class="{ active: index === currentIndex }"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { useMediaStore } from '@/stores/mediaStore'
+import { useDevicesStore } from '@/stores/devicesStore'
+import { storage } from '@/services/storage'
+
+const mediaStore = useMediaStore()
+const devicesStore = useDevicesStore()
+
+const currentIndex = ref(0)
+let intervalId: number | null = null
+
+const activeProducts = computed(() => mediaStore.activeProducts)
+
+const currentProduct = computed(() => {
+  if (activeProducts.value.length === 0) return null
+  return activeProducts.value[currentIndex.value]
+})
+
+const deviceId = computed(() => storage.getLocalStorage<string>('deviceId'))
+
+const deviceSettings = computed(() => {
+  if (!deviceId.value) return null
+  return devicesStore.getDeviceSettings(deviceId.value)
+})
+
+const backgroundColor = computed(() => {
+  // Usar a cor predominante configurada no device
+  const primaryColor = deviceSettings.value?.primary_color
+  if (primaryColor) {
+    return primaryColor
+  }
+  // Cor padrão se não houver configuração
+  return '#3b82f6'
+})
+
+function formatPrice(price: number): string {
+  return price.toFixed(2).replace('.', ',')
+}
+
+function nextProduct(): void {
+  if (activeProducts.value.length === 0) return
+  currentIndex.value = (currentIndex.value + 1) % activeProducts.value.length
+}
+
+onMounted(() => {
+  intervalId = window.setInterval(nextProduct, 5000)
+})
+
+onUnmounted(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
+})
+</script>
+
+<style scoped>
+.products-carousel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  transition: background 0.3s ease;
+}
+
+.no-products {
+  text-align: center;
+  color: white;
+  font-size: 48px;
+  font-weight: 300;
+}
+
+.carousel-container {
+  width: 100%;
+  max-width: 1200px;
+  position: relative;
+}
+
+.product-card {
+  background: white;
+  border-radius: 30px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.product-image {
+  width: 100%;
+  height: 600px;
+  overflow: hidden;
+  position: relative;
+}
+
+.product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.restaurant-logo {
+  position: absolute !important;
+  bottom: 20px;
+  right: 20px;
+  width: 120px !important;
+  height: 120px !important;
+  object-fit: contain !important;
+  background: white;
+  border-radius: 20px;
+  padding: 15px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.product-info {
+  padding: 50px;
+  text-align: center;
+}
+
+.product-name {
+  font-size: 56px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 30px;
+}
+
+.product-price {
+  font-size: 64px;
+  font-weight: 800;
+  color: #27ae60;
+}
+
+.carousel-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+.indicator {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
+}
+
+.indicator.active {
+  background: white;
+  transform: scale(1.3);
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.5s ease;
+}
+
+.slide-enter-from {
+  opacity: 0;
+  transform: translateX(100px);
+}
+
+.slide-leave-to {
+  opacity: 0;
+  transform: translateX(-100px);
+}
+</style>
