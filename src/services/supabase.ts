@@ -42,8 +42,6 @@ export const supabase: SupabaseClient = (() => {
         storageKey: 'sb-wslrbparafkoxahesnjj-auth-token'
       }
     })
-    
-    console.log('✅ Supabase client inicializado')
   }
   return supabaseInstance
 })()
@@ -63,8 +61,6 @@ export const supabaseAdmin: SupabaseClient = (() => {
         detectSessionInUrl: false
       }
     })
-    
-    console.log('✅ Supabase admin client inicializado')
   }
   return supabaseAdminInstance
 })()
@@ -149,15 +145,11 @@ export async function getCurrentUser(): Promise<{ user: User | null; error: Erro
  * Get user with role from admin_users table
  */
 async function getUserWithRole(userId: string): Promise<User> {
-  console.log('Fetching user with ID:', userId)
-  
   const { data, error } = await supabase
     .from('admin_users')
     .select('id, user_id, email, role, created_at')
     .eq('user_id', userId)
     .single()
-
-  console.log('Query result:', { data, error })
 
   if (error) {
     console.error('Database error:', error)

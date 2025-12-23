@@ -83,7 +83,6 @@ function isVimeo(url: string): boolean {
 }
 
 function getYouTubeEmbedUrl(url: string): string {
-  // Extrair ID do vídeo
   let videoId = ''
   if (url.includes('youtube.com/watch?v=')) {
     videoId = url.split('v=')[1]?.split('&')[0] || ''
@@ -94,7 +93,6 @@ function getYouTubeEmbedUrl(url: string): string {
 }
 
 function getVimeoEmbedUrl(url: string): string {
-  // Extrair ID do vídeo
   const videoId = url.split('vimeo.com/')[1]?.split('?')[0] || ''
   return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1&loop=1`
 }
@@ -117,56 +115,15 @@ function startRotation(): void {
 
 watch(currentMedia, (newMedia) => {
   if (newMedia) {
-    console.log('🎬 [MediaPlayer] Mídia atual mudou:', {
-      id: newMedia.id,
-      title: newMedia.title,
-      type: newMedia.type,
-      url: newMedia.url,
-      duration: newMedia.duration,
-      isYouTube: isYouTube(newMedia.url || ''),
-      isVimeo: isVimeo(newMedia.url || ''),
-      typeCheck: newMedia.type === 'video',
-      urlCheck: newMedia.url
-    })
-    
-    // Verificar qual condição será atendida
-    if (newMedia.type === 'image') {
-      console.log('✅ Vai mostrar IMAGEM')
-    } else if (newMedia.type === 'video' && !isYouTube(newMedia.url || '') && !isVimeo(newMedia.url || '')) {
-      console.log('✅ Vai mostrar VÍDEO DIRETO (MP4)')
-    } else if (isYouTube(newMedia.url || '')) {
-      console.log('✅ Vai mostrar YOUTUBE')
-      console.log('   URL do embed:', getYouTubeEmbedUrl(newMedia.url || ''))
-    } else if (isVimeo(newMedia.url || '')) {
-      console.log('✅ Vai mostrar VIMEO')
-      console.log('   URL do embed:', getVimeoEmbedUrl(newMedia.url || ''))
-    } else {
-      console.log('❌ NENHUMA CONDIÇÃO ATENDIDA!')
-    }
-    
     startRotation()
   }
 })
 
 onMounted(async () => {
-  console.log('🎬 [MediaPlayer] Componente montado')
   await mediaStore.fetchMedia()
   
-  console.log('📊 [MediaPlayer] Mídias carregadas:', {
-    total: mediaStore.activeMedia.length,
-    mídias: mediaStore.activeMedia.map(m => ({
-      id: m.id,
-      title: m.title,
-      type: m.type,
-      url: m.url
-    }))
-  })
-  
   if (currentMedia.value) {
-    console.log('🎬 [MediaPlayer] Iniciando com mídia:', currentMedia.value.title)
     startRotation()
-  } else {
-    console.log('⚠️ [MediaPlayer] Nenhuma mídia disponível para exibir')
   }
 })
 

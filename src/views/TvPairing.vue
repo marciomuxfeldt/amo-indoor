@@ -118,7 +118,6 @@ const currentDeviceLayout = computed(() => {
 // Carregar devices ao montar o componente (apenas se ainda não foram carregados)
 onMounted(async () => {
   if (devicesStore.devices.length === 0) {
-    console.log('📥 [TvPairing] Carregando devices...')
     await devicesStore.fetchDevices()
   }
 })
@@ -130,8 +129,6 @@ async function pairDevice(): Promise<void> {
   error.value = ''
 
   try {
-    console.log('🔵 [TvPairing] Iniciando pareamento com código:', code.value)
-    
     // Adicionar timeout de 10 segundos
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('Timeout: pareamento demorou mais de 10 segundos')), 10000)
@@ -149,20 +146,14 @@ async function pairDevice(): Promise<void> {
       return
     }
 
-    console.log('✅ [TvPairing] Device encontrado:', device.id)
-
     // Verificar se a TV já está pareada
     const existingDeviceId = storage.getLocalStorage<string>('deviceId')
     
     if (existingDeviceId && existingDeviceId !== device.id) {
       // TV já pareada com outro device - mostrar modal de confirmação
-      console.log('⚠️ [TvPairing] TV já pareada com:', existingDeviceId)
-      console.log('🔄 [TvPairing] Novo device:', device.id)
       
-      // NÃO carregar devices novamente, usar os que já estão em memória
       // Se os devices ainda não foram carregados, carregar agora
       if (devicesStore.devices.length === 0) {
-        console.log('📥 [TvPairing] Carregando devices para modal...')
         await devicesStore.fetchDevices()
       }
       
@@ -175,8 +166,6 @@ async function pairDevice(): Promise<void> {
     // Pareamento normal (primeira vez ou mesmo device)
     await completePairing(device.id)
   } catch (err) {
-    console.error('❌ [TvPairing] Erro ao parear:', err)
-    
     if (err instanceof Error && err.message.includes('Timeout')) {
       error.value = 'Pareamento demorou muito tempo. Verifique sua conexão e tente novamente.'
     } else {
@@ -188,8 +177,6 @@ async function pairDevice(): Promise<void> {
 }
 
 async function completePairing(deviceId: string): Promise<void> {
-  console.log('✅ [TvPairing] Completando pareamento com device:', deviceId)
-  
   // Limpar qualquer estado anterior
   storage.removeLocalStorage('deviceId')
   
@@ -204,13 +191,11 @@ async function completePairing(deviceId: string): Promise<void> {
   
   // Aguardar 2 segundos antes de redirecionar
   setTimeout(() => {
-    console.log('🔄 [TvPairing] Redirecionando para /tv')
     router.push('/tv')
   }, 2000)
 }
 
 function confirmRepair(): void {
-  console.log('✅ [TvPairing] Usuário confirmou troca de device')
   showConfirmModal.value = false
   loading.value = true
   
@@ -220,7 +205,6 @@ function confirmRepair(): void {
 }
 
 function cancelRepair(): void {
-  console.log('❌ [TvPairing] Usuário cancelou troca de device')
   showConfirmModal.value = false
   pendingDeviceId.value = null
   code.value = ''

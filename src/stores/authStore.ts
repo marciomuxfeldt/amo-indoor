@@ -43,7 +43,6 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = newUser
       })
     } catch (err) {
-      console.error('Auth initialization error:', err)
       error.value = err instanceof Error ? err.message : 'Failed to initialize authentication'
       user.value = null
     } finally {
@@ -69,7 +68,6 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed'
       error.value = errorMessage
-      console.error('Login error:', err)
       return { success: false, error: errorMessage }
     } finally {
       loading.value = false
@@ -90,7 +88,6 @@ export const useAuthStore = defineStore('auth', () => {
 
       user.value = null
     } catch (err) {
-      console.error('Logout error:', err)
       error.value = err instanceof Error ? err.message : 'Logout failed'
       // Clear user anyway on logout error
       user.value = null

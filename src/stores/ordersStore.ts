@@ -9,7 +9,6 @@ export const useOrdersStore = defineStore('orders', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // Para a TV: pedidos prontos primeiro (ascendente), depois preparando (ascendente)
   const displayOrders = computed(() => {
     const ready = orders.value
       .filter(order => order.status === 'READY')
@@ -33,12 +32,8 @@ export const useOrdersStore = defineStore('orders', () => {
   )
 
   async function fetchOrders(): Promise<void> {
-    console.log('🔵 [ordersStore] fetchOrders iniciado')
-    
     if (!isSupabaseConfigured) {
-      console.warn('⚠️ [ordersStore] Supabase não configurado')
       orders.value = []
-      console.log('✅ [ordersStore] Orders inicializado vazio')
       return
     }
 
@@ -46,29 +41,21 @@ export const useOrdersStore = defineStore('orders', () => {
     error.value = null
 
     try {
-      console.log('📡 [ordersStore] Chamando Supabase.from(app_8c186_orders)...')
-      
       const { data, error: fetchError } = await supabase
         .from('app_8c186_orders')
         .select('*')
         .order('created_at', { ascending: false })
 
-      console.log('📡 [ordersStore] Resposta do Supabase recebida')
-
       if (fetchError) {
-        console.error('❌ [ordersStore] Erro do Supabase:', fetchError)
         throw fetchError
       }
 
       orders.value = data || []
-      console.log('✅ [ordersStore] Orders carregados:', orders.value.length)
     } catch (err) {
-      console.error('❌ [ordersStore] Erro no catch:', err)
       error.value = err instanceof Error ? err.message : 'Failed to fetch orders'
       orders.value = []
     } finally {
       loading.value = false
-      console.log('🏁 [ordersStore] fetchOrders finalizado')
     }
   }
 
@@ -77,29 +64,24 @@ export const useOrdersStore = defineStore('orders', () => {
       return
     }
 
-    try {
-      const { data, error: createError } = await supabase
-        .from('app_8c186_orders')
-        .insert([{
-          order_number: orderData.order_number,
-          customer_name: orderData.customer_name,
-          store_name: orderData.store_name,
-          status: orderData.status || 'PENDING',
-          store_id: orderData.store_id || '',
-          kitchen_id: orderData.kitchen_id || '',
-          channel: orderData.channel || 'local'
-        }])
-        .select()
-        .single()
+    const { data, error: createError } = await supabase
+      .from('app_8c186_orders')
+      .insert([{
+        order_number: orderData.order_number,
+        customer_name: orderData.customer_name,
+        store_name: orderData.store_name,
+        status: orderData.status || 'PENDING',
+        store_id: orderData.store_id || '',
+        kitchen_id: orderData.kitchen_id || '',
+        channel: orderData.channel || 'local'
+      }])
+      .select()
+      .single()
 
-      if (createError) throw createError
+    if (createError) throw createError
 
-      if (data) {
-        orders.value.unshift(data)
-      }
-    } catch (err) {
-      console.error('Erro ao criar pedido no Supabase:', err)
-      throw err
+    if (data) {
+      orders.value.unshift(data)
     }
   }
 
@@ -108,28 +90,23 @@ export const useOrdersStore = defineStore('orders', () => {
       return
     }
 
-    try {
-      const { error: updateError } = await supabase
-        .from('app_8c186_orders')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
+    const { error: updateError } = await supabase
+      .from('app_8c186_orders')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId)
 
-      if (updateError) throw updateError
+    if (updateError) throw updateError
 
-      const index = orders.value.findIndex(o => o.id === orderId)
-      if (index !== -1) {
-        orders.value[index] = {
-          ...orders.value[index],
-          ...updates,
-          updated_at: new Date().toISOString()
-        }
+    const index = orders.value.findIndex(o => o.id === orderId)
+    if (index !== -1) {
+      orders.value[index] = {
+        ...orders.value[index],
+        ...updates,
+        updated_at: new Date().toISOString()
       }
-    } catch (err) {
-      console.error('Erro ao atualizar pedido no Supabase:', err)
-      throw err
     }
   }
 
@@ -138,22 +115,17 @@ export const useOrdersStore = defineStore('orders', () => {
       return
     }
 
-    try {
-      const { error: updateError } = await supabase
-        .from('app_8c186_orders')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', orderId)
+    const { error: updateError } = await supabase
+      .from('app_8c186_orders')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', orderId)
 
-      if (updateError) throw updateError
+    if (updateError) throw updateError
 
-      const index = orders.value.findIndex(o => o.id === orderId)
-      if (index !== -1) {
-        orders.value[index].status = status
-        orders.value[index].updated_at = new Date().toISOString()
-      }
-    } catch (err) {
-      console.error('Erro ao atualizar pedido no Supabase:', err)
-      throw err
+    const index = orders.value.findIndex(o => o.id === orderId)
+    if (index !== -1) {
+      orders.value[index].status = status
+      orders.value[index].updated_at = new Date().toISOString()
     }
   }
 
@@ -162,19 +134,14 @@ export const useOrdersStore = defineStore('orders', () => {
       return
     }
 
-    try {
-      const { error: deleteError } = await supabase
-        .from('app_8c186_orders')
-        .delete()
-        .eq('id', orderId)
+    const { error: deleteError } = await supabase
+      .from('app_8c186_orders')
+      .delete()
+      .eq('id', orderId)
 
-      if (deleteError) throw deleteError
+    if (deleteError) throw deleteError
 
-      orders.value = orders.value.filter(o => o.id !== orderId)
-    } catch (err) {
-      console.error('Erro ao deletar pedido no Supabase:', err)
-      throw err
-    }
+    orders.value = orders.value.filter(o => o.id !== orderId)
   }
 
   function handleNewReadyOrder(order: Order): void {
@@ -193,7 +160,6 @@ export const useOrdersStore = defineStore('orders', () => {
 
   function subscribeToOrders(): void {
     if (!isSupabaseConfigured) {
-      console.warn('Supabase não configurado, real-time desabilitado')
       return
     }
 
