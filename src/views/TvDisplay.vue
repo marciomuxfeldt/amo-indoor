@@ -101,6 +101,7 @@ const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer> | null>(null)
 const configError = ref<string | null>(null)
 const isInitialized = ref(false)
 let rotationInterval: number | null = null
+let fullscreenCheckInterval: number | null = null
 
 const deviceId = computed(() => storage.getLocalStorage<string>('deviceId'))
 
@@ -212,6 +213,11 @@ function rotateContent(): void {
 
   rotationIndex.value = (rotationIndex.value + 1) % rotationSequence.value.length
   currentContentType.value = rotationSequence.value[rotationIndex.value]
+  
+  // Reforçar fullscreen ao trocar de conteúdo
+  if (currentContentType.value === 'orders') {
+    enterFullscreen()
+  }
 }
 
 function startRotation(): void {
@@ -231,13 +237,44 @@ function startRotation(): void {
   rotationInterval = window.setInterval(rotateContent, interval)
 }
 
+function isFullscreen(): boolean {
+  return !!(
+    document.fullscreenElement ||
+    (document as any).webkitFullscreenElement ||
+    (document as any).mozFullScreenElement ||
+    (document as any).msFullscreenElement
+  )
+}
+
 function enterFullscreen(): void {
+  // Se já está em fullscreen, não fazer nada
+  if (isFullscreen()) {
+    return
+  }
+
   const elem = document.documentElement
+  
   if (elem.requestFullscreen) {
     elem.requestFullscreen().catch(err => {
       console.warn('Failed to enter fullscreen:', err)
     })
+  } else if ((elem as any).webkitRequestFullscreen) {
+    (elem as any).webkitRequestFullscreen()
+  } else if ((elem as any).mozRequestFullScreen) {
+    (elem as any).mozRequestFullScreen()
+  } else if ((elem as any).msRequestFullscreen) {
+    (elem as any).msRequestFullscreen()
   }
+}
+
+function startFullscreenMonitor(): void {
+  // Verificar a cada 30 segundos se saiu do fullscreen
+  fullscreenCheckInterval = window.setInterval(() => {
+    if (!isFullscreen()) {
+      console.log('Detectado saída do fullscreen, reativando...')
+      enterFullscreen()
+    }
+  }, 30000) // 30 segundos
 }
 
 async function retryConfiguration(): Promise<void> {
@@ -264,6 +301,15 @@ function handleKeyPress(event: KeyboardEvent): void {
   if (event.ctrlKey && event.shiftKey && event.key === 'A') {
     event.preventDefault()
     goToAdmin()
+  }
+}
+
+function handleFullscreenChange(): void {
+  // Quando sair do fullscreen (por qualquer motivo), tentar reentrar após 2 segundos
+  if (!isFullscreen()) {
+    setTimeout(() => {
+      enterFullscreen()
+    }, 2000)
   }
 }
 
@@ -335,6 +381,7 @@ async function initialize(): Promise<void> {
     heartbeat.start(storedDeviceId)
     watchdog.start()
     enterFullscreen()
+    startFullscreenMonitor()
     startRotation()
   } catch (err) {
     configError.value = `Erro ao carregar dados: ${err instanceof Error ? err.message : 'Erro desconhecido'}`
@@ -356,6 +403,8 @@ watch(hasOrders, (newValue) => {
   if (newValue && rotationSequence.value.length > 0) {
     currentContentType.value = 'orders'
     rotationIndex.value = 0
+    // Reforçar fullscreen quando novos pedidos aparecem
+    enterFullscreen()
   }
 })
 
@@ -372,15 +421,30 @@ watch(() => device.value?.layout_type, (newLayout, oldLayout) => {
 onMounted(() => {
   initialize()
   window.addEventListener('keydown', handleKeyPress)
+  
+  // Escutar eventos de mudança de fullscreen
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
+  document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+  document.addEventListener('mozfullscreenchange', handleFullscreenChange)
+  document.addEventListener('MSFullscreenChange', handleFullscreenChange)
 })
 
 onUnmounted(() => {
   if (rotationInterval) {
     clearInterval(rotationInterval)
   }
+  if (fullscreenCheckInterval) {
+    clearInterval(fullscreenCheckInterval)
+  }
   heartbeat.stop()
   watchdog.stop()
   window.removeEventListener('keydown', handleKeyPress)
+  
+  // Remover listeners de fullscreen
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
+  document.removeEventListener('mozfullscreenchange', handleFullscreenChange)
+  document.removeEventListener('MSFullscreenChange', handleFullscreenChange)
 })
 </script>
 

@@ -1,26 +1,7 @@
 <template>
   <div class="orders-kanban">
     <div class="kanban-container">
-      <!-- Coluna Prontos (Esquerda) -->
-      <div class="kanban-column ready-column">
-        <div class="column-header">
-          <h2>PRONTOS</h2>
-          <span class="count">{{ readyOrders.length }}</span>
-        </div>
-        <div class="orders-list">
-          <div
-            v-for="order in readyOrders"
-            :key="order.id"
-            class="order-card ready"
-          >
-            <span class="order-number">{{ order.order_number }}</span>
-            <span class="customer-name">{{ formatCustomerName(order.customer_name) }}</span>
-            <span class="store-name">{{ order.store_name }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Coluna Em Preparo (Direita) -->
+      <!-- Coluna Em Preparo (Esquerda) -->
       <div class="kanban-column preparing-column">
         <div class="column-header">
           <h2>EM PREPARO</h2>
@@ -31,6 +12,25 @@
             v-for="order in preparingOrders"
             :key="order.id"
             class="order-card preparing"
+          >
+            <span class="order-number">{{ order.order_number }}</span>
+            <span class="customer-name">{{ formatCustomerName(order.customer_name) }}</span>
+            <span class="store-name">{{ order.store_name }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna Prontos (Direita) -->
+      <div class="kanban-column ready-column">
+        <div class="column-header">
+          <h2>PRONTOS</h2>
+          <span class="count">{{ readyOrders.length }}</span>
+        </div>
+        <div class="orders-list">
+          <div
+            v-for="order in readyOrders"
+            :key="order.id"
+            class="order-card ready"
           >
             <span class="order-number">{{ order.order_number }}</span>
             <span class="customer-name">{{ formatCustomerName(order.customer_name) }}</span>
@@ -209,18 +209,18 @@ function formatCustomerName(name: string): string {
 }
 
 .store-name {
-  font-size: 56px;
-  font-weight: 900;
-  color: #2c3e50;
+  font-size: 36px;
+  font-weight: 700;
+  color: #7f8c8d;
   text-align: right;
-  min-width: 200px;
-}
-
-.ready-column {
-  border: 3px solid #27ae60;
+  min-width: 150px;
 }
 
 .preparing-column {
   border: 3px solid #f39c12;
+}
+
+.ready-column {
+  border: 3px solid #27ae60;
 }
 </style>

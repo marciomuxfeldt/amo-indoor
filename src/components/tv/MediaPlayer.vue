@@ -15,6 +15,11 @@
           :src="currentMedia.url"
           :alt="currentMedia.title"
           class="media-image"
+          loading="eager"
+          decoding="async"
+          fetchpriority="high"
+          @load="onMediaLoad"
+          @error="onMediaError"
         >
         
         <!-- Vídeo -->
@@ -26,6 +31,9 @@
           muted
           loop
           playsinline
+          preload="auto"
+          @loadeddata="onMediaLoad"
+          @error="onMediaError"
         />
         
         <!-- YouTube -->
@@ -97,6 +105,14 @@ function getVimeoEmbedUrl(url: string): string {
   return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1&loop=1`
 }
 
+function onMediaLoad(): void {
+  console.log('Mídia carregada com sucesso')
+}
+
+function onMediaError(event: Event): void {
+  console.error('Erro ao carregar mídia:', event)
+}
+
 function nextMedia(): void {
   const media = mediaStore.activeMedia
   if (!media || media.length === 0) return
@@ -113,16 +129,57 @@ function startRotation(): void {
   intervalId.value = window.setInterval(nextMedia, duration)
 }
 
+// Pré-carregar a próxima mídia
+function preloadNextMedia(): void {
+  const media = mediaStore.activeMedia
+  if (!media || media.length <= 1) return
+  
+  const nextIndex = (currentIndex.value + 1) % media.length
+  const nextMedia = media[nextIndex]
+  
+  if (nextMedia.type === 'image' && nextMedia.url) {
+    const img = new Image()
+    img.src = nextMedia.url
+  } else if (nextMedia.type === 'video' && nextMedia.url && !isYouTube(nextMedia.url) && !isVimeo(nextMedia.url)) {
+    const video = document.createElement('video')
+    video.src = nextMedia.url
+    video.preload = 'auto'
+  }
+}
+
+// Pré-carregar todas as mídias ao montar
+function preloadAllMedia(): void {
+  const media = mediaStore.activeMedia
+  if (!media || media.length === 0) return
+  
+  media.forEach(item => {
+    if (item.type === 'image' && item.url) {
+      const img = new Image()
+      img.src = item.url
+    } else if (item.type === 'video' && item.url && !isYouTube(item.url) && !isVimeo(item.url)) {
+      const video = document.createElement('video')
+      video.src = item.url
+      video.preload = 'metadata'
+    }
+  })
+}
+
 watch(currentMedia, (newMedia) => {
   if (newMedia) {
     startRotation()
+    preloadNextMedia()
   }
+})
+
+watch(currentIndex, () => {
+  preloadNextMedia()
 })
 
 onMounted(async () => {
   await mediaStore.fetchMedia()
   
   if (currentMedia.value) {
+    preloadAllMedia()
     startRotation()
   }
 })
@@ -156,6 +213,15 @@ onUnmounted(() => {
 .media-iframe {
   width: 100%;
   height: 100%;
+  object-fit: cover;
+}
+
+.media-image {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+.media-video {
   object-fit: cover;
 }
 
