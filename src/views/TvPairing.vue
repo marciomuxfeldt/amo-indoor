@@ -81,10 +81,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDevicesStore } from '@/stores/devicesStore'
 import { storage } from '@/services/storage'
+import type { Device } from '@/types'
 
 const router = useRouter()
 const devicesStore = useDevicesStore()
@@ -114,6 +115,14 @@ const currentDeviceLayout = computed(() => {
   return layoutNames[layout] || layout
 })
 
+// Carregar devices ao montar o componente (apenas se ainda não foram carregados)
+onMounted(async () => {
+  if (devicesStore.devices.length === 0) {
+    console.log('📥 [TvPairing] Carregando devices...')
+    await devicesStore.fetchDevices()
+  }
+})
+
 async function pairDevice(): Promise<void> {
   if (code.value.length < 6) return
 
@@ -121,14 +130,26 @@ async function pairDevice(): Promise<void> {
   error.value = ''
 
   try {
-    // Buscar o device pelo código
-    const device = await devicesStore.pairDevice(code.value)
+    console.log('🔵 [TvPairing] Iniciando pareamento com código:', code.value)
     
+    // Adicionar timeout de 10 segundos
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout: pareamento demorou mais de 10 segundos')), 10000)
+    })
+
+    // Buscar o device pelo código com timeout
+    const device = await Promise.race<Device | null>([
+      devicesStore.pairDevice(code.value),
+      timeoutPromise
+    ])
+
     if (!device) {
       error.value = 'Código inválido. Verifique e tente novamente.'
       loading.value = false
       return
     }
+
+    console.log('✅ [TvPairing] Device encontrado:', device.id)
 
     // Verificar se a TV já está pareada
     const existingDeviceId = storage.getLocalStorage<string>('deviceId')
@@ -138,8 +159,12 @@ async function pairDevice(): Promise<void> {
       console.log('⚠️ [TvPairing] TV já pareada com:', existingDeviceId)
       console.log('🔄 [TvPairing] Novo device:', device.id)
       
-      // Carregar devices para mostrar informações no modal
-      await devicesStore.fetchDevices()
+      // NÃO carregar devices novamente, usar os que já estão em memória
+      // Se os devices ainda não foram carregados, carregar agora
+      if (devicesStore.devices.length === 0) {
+        console.log('📥 [TvPairing] Carregando devices para modal...')
+        await devicesStore.fetchDevices()
+      }
       
       pendingDeviceId.value = device.id
       showConfirmModal.value = true
@@ -151,7 +176,13 @@ async function pairDevice(): Promise<void> {
     await completePairing(device.id)
   } catch (err) {
     console.error('❌ [TvPairing] Erro ao parear:', err)
-    error.value = 'Erro ao parear dispositivo. Tente novamente.'
+    
+    if (err instanceof Error && err.message.includes('Timeout')) {
+      error.value = 'Pareamento demorou muito tempo. Verifique sua conexão e tente novamente.'
+    } else {
+      error.value = 'Erro ao parear dispositivo. Tente novamente.'
+    }
+    
     loading.value = false
   }
 }
@@ -169,6 +200,7 @@ async function completePairing(deviceId: string): Promise<void> {
   storage.setLocalStorage('deviceId', deviceId)
   
   success.value = true
+  loading.value = false
   
   // Aguardar 2 segundos antes de redirecionar
   setTimeout(() => {
@@ -192,6 +224,7 @@ function cancelRepair(): void {
   showConfirmModal.value = false
   pendingDeviceId.value = null
   code.value = ''
+  loading.value = false
   error.value = 'Pareamento cancelado. A TV permanece com o device atual.'
 }
 </script>

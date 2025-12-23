@@ -4,26 +4,70 @@ import type { Device, MediaItem, Product, Order, TvSettings, User, LoginCredenti
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey)
+// Validar que as variáveis de ambiente estão configuradas
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ ERRO: Variáveis de ambiente do Supabase não configuradas!')
+  console.error('VITE_SUPABASE_URL:', supabaseUrl ? '✅ Configurado' : '❌ Faltando')
+  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅ Configurado' : '❌ Faltando')
+}
+
+// Validar que os valores não são strings vazias ou inválidas
+if (supabaseUrl && (supabaseUrl === 'undefined' || supabaseUrl === 'null')) {
+  console.error('❌ ERRO: VITE_SUPABASE_URL tem valor inválido:', supabaseUrl)
+}
+
+if (supabaseAnonKey && (supabaseAnonKey === 'undefined' || supabaseAnonKey === 'null')) {
+  console.error('❌ ERRO: VITE_SUPABASE_ANON_KEY tem valor inválido:', supabaseAnonKey)
+}
+
+export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && supabaseUrl !== 'undefined' && supabaseAnonKey !== 'undefined')
+
+// Singleton pattern para evitar múltiplas instâncias
+let supabaseInstance: SupabaseClient | null = null
+let supabaseAdminInstance: SupabaseClient | null = null
 
 // Cliente principal com autenticação persistente (para login de usuários)
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true
+export const supabase: SupabaseClient = (() => {
+  if (!supabaseInstance) {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase não está configurado corretamente. Verifique as variáveis de ambiente.')
+    }
+    
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        storageKey: 'sb-wslrbparafkoxahesnjj-auth-token'
+      }
+    })
+    
+    console.log('✅ Supabase client inicializado')
   }
-})
+  return supabaseInstance
+})()
 
 // Cliente administrativo SEM sessão persistente (para operações de CRUD)
 // Isso evita conflitos com tokens de autenticação que podem causar timeout
-export const supabaseAdmin: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false
+export const supabaseAdmin: SupabaseClient = (() => {
+  if (!supabaseAdminInstance) {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase não está configurado corretamente. Verifique as variáveis de ambiente.')
+    }
+    
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      }
+    })
+    
+    console.log('✅ Supabase admin client inicializado')
   }
-})
+  return supabaseAdminInstance
+})()
 
 // ============================================
 // Authentication Functions
@@ -34,6 +78,10 @@ export const supabaseAdmin: SupabaseClient = createClient(supabaseUrl, supabaseA
  */
 export async function signIn(credentials: LoginCredentials): Promise<{ user: User | null; error: Error | null }> {
   try {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase não está configurado. Verifique as variáveis de ambiente.')
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email: credentials.email,
       password: credentials.password
