@@ -26,9 +26,6 @@
             <img
               :src="currentProduct.image_url"
               :alt="currentProduct.name"
-              loading="eager"
-              decoding="async"
-              fetchpriority="high"
               @load="onImageLoad"
               @error="onImageError"
             >
@@ -37,8 +34,6 @@
               :src="currentProduct.logo_url"
               alt="Logo"
               class="restaurant-logo"
-              loading="eager"
-              decoding="async"
             >
           </div>
           <div class="product-info">
@@ -109,36 +104,22 @@ function nextProduct(): void {
 }
 
 function onImageLoad(): void {
-  // Imagem carregada com sucesso
+  console.log('Imagem do produto carregada:', currentProduct.value?.name)
 }
 
 function onImageError(event: Event): void {
-  console.error('Erro ao carregar imagem do produto:', event)
-}
-
-// Pré-carregar as próximas imagens
-function preloadNextImages(): void {
-  if (activeProducts.value.length <= 1) return
-  
-  const nextIndex = (currentIndex.value + 1) % activeProducts.value.length
-  const nextProduct = activeProducts.value[nextIndex]
-  
-  if (nextProduct?.image_url) {
-    const img = new Image()
-    img.src = nextProduct.image_url
-  }
-  
-  if (nextProduct?.logo_url) {
-    const logo = new Image()
-    logo.src = nextProduct.logo_url
-  }
+  console.error('Erro ao carregar imagem do produto:', currentProduct.value?.image_url, event)
 }
 
 // Pré-carregar todas as imagens ao montar
 function preloadAllImages(): void {
-  activeProducts.value.forEach(product => {
+  console.log('Pré-carregando', activeProducts.value.length, 'imagens de produtos...')
+  
+  activeProducts.value.forEach((product, index) => {
     if (product.image_url) {
       const img = new Image()
+      img.onload = () => console.log(`Produto ${index + 1} imagem carregada:`, product.name)
+      img.onerror = (err) => console.error(`Erro ao carregar produto ${index + 1}:`, product.name, err)
       img.src = product.image_url
     }
     if (product.logo_url) {
@@ -148,12 +129,17 @@ function preloadAllImages(): void {
   })
 }
 
-watch(currentIndex, () => {
-  preloadNextImages()
-})
+watch(activeProducts, (newProducts) => {
+  if (newProducts.length > 0) {
+    console.log('Produtos atualizados, pré-carregando imagens...')
+    preloadAllImages()
+  }
+}, { immediate: true })
 
 onMounted(() => {
-  preloadAllImages()
+  if (activeProducts.value.length > 0) {
+    preloadAllImages()
+  }
   intervalId = window.setInterval(nextProduct, 5000)
 })
 
@@ -207,8 +193,6 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
 }
 
 .restaurant-logo {
