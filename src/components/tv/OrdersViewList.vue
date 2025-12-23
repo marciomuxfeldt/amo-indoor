@@ -316,7 +316,7 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
 }
 
 .label {
-  font-size: 11px;
+  font-size: 22px;
   font-weight: 600;
   color: #7f8c8d;
   text-transform: uppercase;
@@ -324,7 +324,7 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
 }
 
 .value {
-  font-size: 28px;
+  font-size: 56px;
   font-weight: 800;
   color: #2c3e50;
   line-height: 1;
@@ -353,7 +353,7 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 18px;
+  font-size: 36px;
   font-weight: 700;
   padding: 12px 20px;
   border-radius: 10px;
@@ -388,12 +388,16 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
     font-size: 36px;
   }
 
+  .label {
+    font-size: 18px;
+  }
+
   .value {
-    font-size: 24px;
+    font-size: 48px;
   }
 
   .status-badge {
-    font-size: 16px;
+    font-size: 32px;
     padding: 10px 18px;
   }
 
@@ -421,12 +425,16 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
     font-size: 32px;
   }
 
+  .label {
+    font-size: 16px;
+  }
+
   .value {
-    font-size: 22px;
+    font-size: 44px;
   }
 
   .status-badge {
-    font-size: 15px;
+    font-size: 30px;
     padding: 10px 16px;
   }
 
@@ -446,12 +454,16 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
     grid-template-columns: 160px 1fr 1fr 280px;
   }
 
+  .label {
+    font-size: 24px;
+  }
+
   .value {
-    font-size: 32px;
+    font-size: 64px;
   }
 
   .status-badge {
-    font-size: 20px;
+    font-size: 40px;
     padding: 14px 24px;
   }
 

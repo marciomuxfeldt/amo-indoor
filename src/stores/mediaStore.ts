@@ -290,6 +290,56 @@ export const useMediaStore = defineStore('media', () => {
     }
   }
 
+  function subscribeToProducts(): void {
+    supabaseAdmin
+      .channel('products-channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'app_8c186_products' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const product = payload.new as Product
+            products.value.push(product)
+          } else if (payload.eventType === 'UPDATE') {
+            const product = payload.new as Product
+            const index = products.value.findIndex(p => p.id === product.id)
+            if (index !== -1) {
+              products.value[index] = product
+            }
+          } else if (payload.eventType === 'DELETE') {
+            products.value = products.value.filter(p => p.id !== payload.old.id)
+          }
+        }
+      )
+      .subscribe()
+  }
+
+  function subscribeToMedia(): void {
+    supabaseAdmin
+      .channel('media-channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'app_8c186_media' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const item = payload.new as Media
+            const url = (item.video_url || item.image_url) ?? ''
+            const type = detectMediaType(url)
+            mediaItems.value.push({ ...item, type, url })
+          } else if (payload.eventType === 'UPDATE') {
+            const item = payload.new as Media
+            const index = mediaItems.value.findIndex((m: Media) => m.id === item.id)
+            if (index !== -1) {
+              const url = (item.video_url || item.image_url) ?? ''
+              const type = detectMediaType(url)
+              mediaItems.value[index] = { ...item, type, url }
+            }
+          } else if (payload.eventType === 'DELETE') {
+            mediaItems.value = mediaItems.value.filter((m: Media) => m.id !== payload.old.id)
+          }
+        }
+      )
+      .subscribe()
+  }
+
   return {
     products,
     mediaItems,
@@ -304,6 +354,8 @@ export const useMediaStore = defineStore('media', () => {
     deleteProduct,
     createMedia,
     updateMedia,
-    deleteMedia
+    deleteMedia,
+    subscribeToProducts,
+    subscribeToMedia
   }
 })

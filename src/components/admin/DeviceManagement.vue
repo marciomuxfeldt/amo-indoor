@@ -3,7 +3,7 @@
     <div class="section-header">
       <h2>Gerenciamento de TVs</h2>
       <button
-        class="btn-primary"
+        class="btn-primary btn-new-tv"
         @click="openCreateModal"
       >
         + Nova TV
@@ -79,10 +79,16 @@
             <label>Tipo de Layout</label>
             <select v-model="newDevice.layout_type">
               <option value="orders-list">
-                Pedidos/Mídia
+                Pedidos/Mídia (Linhas)
+              </option>
+              <option value="orders-kanban">
+                Pedidos/Mídia (Kanban)
               </option>
               <option value="orders-only">
-                Apenas Pedidos
+                Apenas Pedidos (Linhas)
+              </option>
+              <option value="orders-only-kanban">
+                Apenas Pedidos (Kanban)
               </option>
               <option value="media-only">
                 Apenas Mídia
@@ -113,7 +119,7 @@
     <div
       v-if="editingDevice"
       class="modal"
-      @click.self="editingDevice = null"
+      @click.self="closeEditModal"
     >
       <div class="modal-content">
         <h3>Editar TV</h3>
@@ -130,10 +136,16 @@
             <label>Tipo de Layout</label>
             <select v-model="editingDevice.layout_type">
               <option value="orders-list">
-                Pedidos/Mídia
+                Pedidos/Mídia (Linhas)
+              </option>
+              <option value="orders-kanban">
+                Pedidos/Mídia (Kanban)
               </option>
               <option value="orders-only">
-                Apenas Pedidos
+                Apenas Pedidos (Linhas)
+              </option>
+              <option value="orders-only-kanban">
+                Apenas Pedidos (Kanban)
               </option>
               <option value="media-only">
                 Apenas Mídia
@@ -144,15 +156,16 @@
             <button
               type="button"
               class="btn-secondary"
-              @click="editingDevice = null"
+              @click="closeEditModal"
             >
               Cancelar
             </button>
             <button
               type="submit"
               class="btn-primary"
+              :disabled="isUpdating"
             >
-              Salvar
+              {{ isUpdating ? 'Salvando...' : 'Salvar' }}
             </button>
           </div>
         </form>
@@ -198,6 +211,7 @@ const devicesStore = useDevicesStore()
 
 const showCreateModal = ref(false)
 const isCreating = ref(false)
+const isUpdating = ref(false)
 const editingDevice = ref<Device | null>(null)
 const qrCodeDevice = ref<Device | null>(null)
 const qrCodeUrl = ref('')
@@ -211,9 +225,11 @@ const devices = computed(() => devicesStore.devices)
 
 function getLayoutLabel(layoutType: string): string {
   const labels: Record<string, string> = {
-    'default': 'Pedidos/Mídia',
-    'orders-list': 'Pedidos/Mídia',
-    'orders-only': 'Apenas Pedidos',
+    'default': 'Pedidos/Mídia (Linhas)',
+    'orders-list': 'Pedidos/Mídia (Linhas)',
+    'orders-kanban': 'Pedidos/Mídia (Kanban)',
+    'orders-only': 'Apenas Pedidos (Linhas)',
+    'orders-only-kanban': 'Apenas Pedidos (Kanban)',
     'media-only': 'Apenas Mídia'
   }
   return labels[layoutType] || layoutType
@@ -229,16 +245,19 @@ function closeCreateModal(): void {
   isCreating.value = false
 }
 
+function closeEditModal(): void {
+  editingDevice.value = null
+  isUpdating.value = false
+}
+
 async function createDevice(): Promise<void> {
   if (isCreating.value) return
   
   isCreating.value = true
   try {
-    console.log('🔵 [DeviceManagement] Criando device com layout:', newDevice.value.layout_type)
     await devicesStore.createDevice(newDevice.value)
     closeCreateModal()
   } catch (error) {
-    console.error('❌ [DeviceManagement] Erro ao criar TV:', error)
     alert('Erro ao criar TV. Tente novamente.')
   } finally {
     isCreating.value = false
@@ -246,31 +265,27 @@ async function createDevice(): Promise<void> {
 }
 
 function editDevice(device: Device): void {
-  console.log('🔵 [DeviceManagement] Editando device:', device.id, 'Layout atual:', device.layout_type)
   editingDevice.value = { ...device }
 }
 
 async function updateDevice(): Promise<void> {
-  if (!editingDevice.value) return
+  if (!editingDevice.value || isUpdating.value) return
 
-  console.log('🔵 [DeviceManagement] Atualizando device:', editingDevice.value.id)
-  console.log('📝 [DeviceManagement] Novo nome:', editingDevice.value.name)
-  console.log('📝 [DeviceManagement] Novo layout_type:', editingDevice.value.layout_type)
-
+  isUpdating.value = true
   try {
     await devicesStore.updateDevice(editingDevice.value.id, {
       name: editingDevice.value.name,
       layout_type: editingDevice.value.layout_type
     })
-    console.log('✅ [DeviceManagement] Device atualizado com sucesso')
     
-    // Recarregar devices para garantir que temos os dados mais recentes
     await devicesStore.fetchDevices()
     
-    editingDevice.value = null
+    closeEditModal()
   } catch (error) {
-    console.error('❌ [DeviceManagement] Erro ao atualizar TV:', error)
-    alert('Erro ao atualizar TV')
+    console.error('Erro ao atualizar TV:', error)
+    alert('Erro ao atualizar TV. Tente novamente.')
+  } finally {
+    isUpdating.value = false
   }
 }
 
@@ -314,6 +329,11 @@ watch(qrCodeDevice, (newVal) => {
   font-size: 28px;
   font-weight: 700;
   color: #2c3e50;
+}
+
+.btn-new-tv {
+  padding: 10px 20px !important;
+  white-space: nowrap;
 }
 
 .devices-grid {

@@ -26,12 +26,19 @@
             <img
               :src="currentProduct.image_url"
               :alt="currentProduct.name"
+              loading="eager"
+              decoding="async"
+              fetchpriority="high"
+              @load="onImageLoad"
+              @error="onImageError"
             >
             <img
               v-if="currentProduct.logo_url"
               :src="currentProduct.logo_url"
               alt="Logo"
               class="restaurant-logo"
+              loading="eager"
+              decoding="async"
             >
           </div>
           <div class="product-info">
@@ -57,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useMediaStore } from '@/stores/mediaStore'
 import { useDevicesStore } from '@/stores/devicesStore'
 import { storage } from '@/services/storage'
@@ -101,7 +108,52 @@ function nextProduct(): void {
   currentIndex.value = (currentIndex.value + 1) % activeProducts.value.length
 }
 
+function onImageLoad(): void {
+  // Imagem carregada com sucesso
+}
+
+function onImageError(event: Event): void {
+  console.error('Erro ao carregar imagem do produto:', event)
+}
+
+// Pré-carregar as próximas imagens
+function preloadNextImages(): void {
+  if (activeProducts.value.length <= 1) return
+  
+  const nextIndex = (currentIndex.value + 1) % activeProducts.value.length
+  const nextProduct = activeProducts.value[nextIndex]
+  
+  if (nextProduct?.image_url) {
+    const img = new Image()
+    img.src = nextProduct.image_url
+  }
+  
+  if (nextProduct?.logo_url) {
+    const logo = new Image()
+    logo.src = nextProduct.logo_url
+  }
+}
+
+// Pré-carregar todas as imagens ao montar
+function preloadAllImages(): void {
+  activeProducts.value.forEach(product => {
+    if (product.image_url) {
+      const img = new Image()
+      img.src = product.image_url
+    }
+    if (product.logo_url) {
+      const logo = new Image()
+      logo.src = product.logo_url
+    }
+  })
+}
+
+watch(currentIndex, () => {
+  preloadNextImages()
+})
+
 onMounted(() => {
+  preloadAllImages()
   intervalId = window.setInterval(nextProduct, 5000)
 })
 
@@ -148,12 +200,15 @@ onUnmounted(() => {
   height: 600px;
   overflow: hidden;
   position: relative;
+  background: #f0f0f0;
 }
 
 .product-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 .restaurant-logo {

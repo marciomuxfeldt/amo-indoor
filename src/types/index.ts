@@ -1,4 +1,4 @@
-export type DeviceLayoutType = 'orders-list' | 'orders-only' | 'media-only' | 'default'
+export type DeviceLayoutType = 'orders-list' | 'orders-kanban' | 'orders-only' | 'orders-only-kanban' | 'media-only' | 'default'
 
 export interface Device {
   id: string

@@ -83,6 +83,7 @@ import { storage } from '@/services/storage'
 import { watchdog } from '@/services/watchdog'
 import { heartbeat } from '@/services/heartbeat'
 import OrdersViewList from '@/components/tv/OrdersViewList.vue'
+import OrdersViewKanban from '@/components/tv/OrdersViewKanban.vue'
 import ProductsCarousel from '@/components/tv/ProductsCarousel.vue'
 import MediaPlayer from '@/components/tv/MediaPlayer.vue'
 import ReconnectingOverlay from '@/components/tv/ReconnectingOverlay.vue'
@@ -119,7 +120,8 @@ const hasMedia = computed(() => mediaStore.activeMedia.length > 0)
 
 // Determinar qual componente de pedidos usar baseado no layout_type
 const OrdersComponent = computed(() => {
-  return OrdersViewList
+  const layoutType = device.value?.layout_type || 'orders-list'
+  return (layoutType === 'orders-kanban' || layoutType === 'orders-only-kanban') ? OrdersViewKanban : OrdersViewList
 })
 
 const rotationSequence = computed(() => {
@@ -138,8 +140,36 @@ const rotationSequence = computed(() => {
       break
 
     case 'orders-only':
+    case 'orders-only-kanban':
+      // APENAS pedidos, sem produtos ou mídias
       if (hasOrders.value) {
         sequence.push('orders')
+      }
+      break
+
+    case 'orders-kanban':
+      // Kanban com rotação de produtos e mídias
+      if (!deviceSettings.value) {
+        if (hasOrders.value) sequence.push('orders')
+        if (hasProducts.value) sequence.push('products')
+        if (hasMedia.value) sequence.push('media')
+      } else {
+        const settings = deviceSettings.value
+
+        if (hasOrders.value) {
+          const ordersCount = Math.ceil((settings.orders_percentage ?? 70) / 10)
+          for (let i = 0; i < ordersCount; i++) sequence.push('orders')
+        }
+
+        if (hasProducts.value) {
+          const productsCount = Math.ceil((settings.products_percentage ?? 10) / 10)
+          for (let i = 0; i < productsCount; i++) sequence.push('products')
+        }
+
+        if (hasMedia.value) {
+          const mediaCount = Math.ceil((settings.media_percentage ?? 20) / 10)
+          for (let i = 0; i < mediaCount; i++) sequence.push('media')
+        }
       }
       break
 
@@ -284,7 +314,7 @@ async function initialize(): Promise<void> {
     }
 
     const layoutType = device.value.layout_type
-    if ((layoutType === 'orders-list' || layoutType === 'default') && !deviceSettings.value) {
+    if ((layoutType === 'orders-list' || layoutType === 'default' || layoutType === 'orders-kanban') && !deviceSettings.value) {
       configError.value = `Configurações não encontradas para o device "${device.value.name}" (${storedDeviceId}).\n\nPor favor, configure a TV no painel admin ou recrie o device.`
       await nextTick()
       return
@@ -300,6 +330,8 @@ async function initialize(): Promise<void> {
     rotationIndex.value = 0
 
     ordersStore.subscribeToOrders()
+    mediaStore.subscribeToProducts()
+    mediaStore.subscribeToMedia()
     heartbeat.start(storedDeviceId)
     watchdog.start()
     enterFullscreen()
