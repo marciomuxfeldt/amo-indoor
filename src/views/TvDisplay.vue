@@ -150,58 +150,40 @@ const rotationSequence = computed(() => {
       break
 
     case 'orders-kanban':
-      if (!deviceSettings.value) {
-        if (hasOrders.value) sequence.push('orders')
-        if (hasProducts.value) sequence.push('products')
-        if (hasMedia.value) sequence.push('media')
-      } else {
-        const settings = deviceSettings.value
-
-        if (hasOrders.value) {
-          const ordersCount = Math.ceil((settings.orders_percentage ?? 70) / 10)
-          for (let i = 0; i < ordersCount; i++) sequence.push('orders')
-        }
-
-        if (hasProducts.value) {
-          const productsCount = Math.ceil((settings.products_percentage ?? 10) / 10)
-          for (let i = 0; i < productsCount; i++) sequence.push('products')
-        }
-
-        if (hasMedia.value) {
-          const mediaCount = Math.ceil((settings.media_percentage ?? 20) / 10)
-          for (let i = 0; i < mediaCount; i++) sequence.push('media')
-        }
-      }
-      break
-
     case 'orders-list':
     case 'default':
     default:
+      // NOVA LÓGICA: Rotação mais equilibrada e rápida
       if (!deviceSettings.value) {
+        // Sem configuração: rotação simples 1:1:1
         if (hasOrders.value) sequence.push('orders')
         if (hasProducts.value) sequence.push('products')
         if (hasMedia.value) sequence.push('media')
       } else {
         const settings = deviceSettings.value
-
+        
+        // OTIMIZAÇÃO: Limitar repetições para máximo de 3 por tipo
+        // Isso garante rotação mais rápida e equilibrada
+        
         if (hasOrders.value) {
-          const ordersCount = Math.ceil((settings.orders_percentage ?? 70) / 10)
+          const ordersCount = Math.min(3, Math.max(1, Math.ceil((settings.orders_percentage ?? 70) / 30)))
           for (let i = 0; i < ordersCount; i++) sequence.push('orders')
         }
 
         if (hasProducts.value) {
-          const productsCount = Math.ceil((settings.products_percentage ?? 10) / 10)
+          const productsCount = Math.min(2, Math.max(1, Math.ceil((settings.products_percentage ?? 10) / 30)))
           for (let i = 0; i < productsCount; i++) sequence.push('products')
         }
 
         if (hasMedia.value) {
-          const mediaCount = Math.ceil((settings.media_percentage ?? 20) / 10)
+          const mediaCount = Math.min(2, Math.max(1, Math.ceil((settings.media_percentage ?? 20) / 30)))
           for (let i = 0; i < mediaCount; i++) sequence.push('media')
         }
       }
       break
   }
 
+  console.log('🔄 Sequência de rotação:', sequence)
   return sequence
 })
 
@@ -213,6 +195,8 @@ function rotateContent(): void {
 
   rotationIndex.value = (rotationIndex.value + 1) % rotationSequence.value.length
   currentContentType.value = rotationSequence.value[rotationIndex.value]
+  
+  console.log(`🔄 Rotacionando para: ${currentContentType.value} (${rotationIndex.value + 1}/${rotationSequence.value.length})`)
   
   enterFullscreen()
 }
@@ -231,7 +215,9 @@ function startRotation(): void {
     return
   }
 
-  const interval = (deviceSettings.value?.auto_rotate_interval || 10) * 1000
+  // OTIMIZAÇÃO: Reduzir intervalo padrão de 10s para 8s
+  const interval = (deviceSettings.value?.auto_rotate_interval || 8) * 1000
+  console.log(`⏱️ Iniciando rotação com intervalo de ${interval / 1000}s`)
   rotationInterval = window.setInterval(rotateContent, interval)
 }
 
