@@ -10,49 +10,119 @@
       </button>
     </div>
 
-    <div class="products-grid">
-      <div
-        v-for="product in products"
-        :key="product.id"
-        class="product-card"
-      >
-        <div class="product-image">
-          <img
-            :src="product.image_url"
-            :alt="product.name"
-          >
-          <div
-            class="product-status"
-            :class="{ active: product.active }"
-          >
-            {{ product.active ? 'Ativo' : 'Inativo' }}
+    <!-- CORREÇÃO 3 e 4: Separar ativos e inativos -->
+    <div class="products-section">
+      <h3 class="section-title active-title">
+        ✅ Produtos Ativos
+      </h3>
+      <div class="products-grid">
+        <div
+          v-for="product in activeProducts"
+          :key="product.id"
+          class="product-card active"
+        >
+          <div class="product-image">
+            <img
+              :src="product.image_url"
+              :alt="product.name"
+            >
+            <img
+              v-if="product.logo_url"
+              :src="product.logo_url"
+              alt="Logo"
+              class="product-logo"
+            >
+          </div>
+          <div class="product-info">
+            <h4>{{ product.name }}</h4>
+            <p class="product-price">
+              R$ {{ formatPrice(product.price) }}
+            </p>
+            <div class="product-actions">
+              <button
+                class="btn-secondary"
+                @click="editProduct(product)"
+              >
+                ✏️ Editar
+              </button>
+              <button
+                class="btn-secondary"
+                @click="toggleActive(product)"
+              >
+                Desativar
+              </button>
+              <button
+                class="btn-danger"
+                @click="confirmDelete(product)"
+              >
+                Excluir
+              </button>
+            </div>
           </div>
         </div>
-        <div class="product-info">
-          <h3>{{ product.name }}</h3>
-          <p class="product-price">
-            R$ {{ formatPrice(product.price) }}
-          </p>
-          <div class="product-actions">
-            <button
-              class="btn-edit"
-              @click="editProduct(product)"
+        <div
+          v-if="activeProducts.length === 0"
+          class="empty-state"
+        >
+          <p>Nenhum produto ativo</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="products-section inactive-section">
+      <h3 class="section-title inactive-title">
+        ⏸️ Produtos Inativos
+      </h3>
+      <div class="products-grid">
+        <div
+          v-for="product in inactiveProducts"
+          :key="product.id"
+          class="product-card inactive"
+        >
+          <div class="product-image">
+            <img
+              :src="product.image_url"
+              :alt="product.name"
             >
-              ✏️ Alterar
-            </button>
-            <button
-              class="btn-secondary"
-              @click="toggleActive(product)"
+            <img
+              v-if="product.logo_url"
+              :src="product.logo_url"
+              alt="Logo"
+              class="product-logo"
             >
-              {{ product.active ? 'Desativar' : 'Ativar' }}
-            </button>
-            <button
-              class="btn-danger"
-              @click="confirmDelete(product)"
-            >
-              Excluir
-            </button>
           </div>
+          <div class="product-info">
+            <h4>{{ product.name }}</h4>
+            <p class="product-price">
+              R$ {{ formatPrice(product.price) }}
+            </p>
+            <div class="product-actions">
+              <button
+                class="btn-secondary"
+                @click="editProduct(product)"
+              >
+                ✏️ Editar
+              </button>
+              <button
+                class="btn-secondary"
+                @click="toggleActive(product)"
+              >
+                Ativar
+              </button>
+              <button
+                class="btn-danger"
+                @click="confirmDelete(product)"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+        <div
+          v-if="inactiveProducts.length === 0"
+          class="empty-state"
+        >
+          <p>Nenhum produto inativo</p>
         </div>
       </div>
     </div>
@@ -80,6 +150,7 @@
               v-model.number="newProduct.price"
               type="number"
               step="0.01"
+              min="0"
               required
             >
           </div>
@@ -89,6 +160,13 @@
               v-model="newProduct.image_url"
               type="url"
               required
+            >
+          </div>
+          <div class="form-group">
+            <label>URL do Logo (opcional)</label>
+            <input
+              v-model="newProduct.logo_url"
+              type="url"
             >
           </div>
           <div class="form-group">
@@ -123,7 +201,7 @@
     <div
       v-if="editingProduct"
       class="modal"
-      @click.self="editingProduct = null"
+      @click.self="cancelEdit"
     >
       <div class="modal-content">
         <h3>Editar Produto</h3>
@@ -142,6 +220,7 @@
               v-model.number="editingProduct.price"
               type="number"
               step="0.01"
+              min="0"
               required
             >
           </div>
@@ -151,6 +230,13 @@
               v-model="editingProduct.image_url"
               type="url"
               required
+            >
+          </div>
+          <div class="form-group">
+            <label>URL do Logo (opcional)</label>
+            <input
+              v-model="editingProduct.logo_url"
+              type="url"
             >
           </div>
           <div class="form-group">
@@ -166,15 +252,16 @@
             <button
               type="button"
               class="btn-secondary"
-              @click="editingProduct = null"
+              @click="cancelEdit"
             >
               Cancelar
             </button>
             <button
               type="submit"
               class="btn-primary"
+              :disabled="isSaving"
             >
-              Salvar
+              {{ isSaving ? 'Salvando...' : 'Salvar' }}
             </button>
           </div>
         </form>
@@ -192,34 +279,27 @@ const mediaStore = useMediaStore()
 
 const showCreateModal = ref(false)
 const editingProduct = ref<Product | null>(null)
+const isSaving = ref(false)
 
 const newProduct = ref({
   name: '',
   price: 0,
   image_url: '',
+  logo_url: '',
   active: true
 })
 
-const products = computed(() => mediaStore.products)
+// CORREÇÃO 3: Filtrar produtos ativos e inativos
+const activeProducts = computed(() => 
+  mediaStore.products.filter(p => p.active)
+)
 
-function editProduct(product: Product): void {
-  editingProduct.value = { ...product }
-}
+const inactiveProducts = computed(() => 
+  mediaStore.products.filter(p => !p.active)
+)
 
-async function updateProduct(): Promise<void> {
-  if (!editingProduct.value) return
-
-  try {
-    await mediaStore.updateProduct(editingProduct.value.id, {
-      name: editingProduct.value.name,
-      price: editingProduct.value.price,
-      image_url: editingProduct.value.image_url,
-      active: editingProduct.value.active
-    })
-    editingProduct.value = null
-  } catch (error) {
-    alert('Erro ao atualizar produto')
-  }
+function formatPrice(price: number): string {
+  return price.toFixed(2).replace('.', ',')
 }
 
 async function createProduct(): Promise<void> {
@@ -230,10 +310,42 @@ async function createProduct(): Promise<void> {
       name: '',
       price: 0,
       image_url: '',
+      logo_url: '',
       active: true
     }
   } catch (error) {
-    alert('Erro ao criar produto')
+    console.error('Erro ao criar produto:', error)
+    alert('Erro ao criar produto. Tente novamente.')
+  }
+}
+
+function editProduct(product: Product): void {
+  editingProduct.value = { ...product }
+}
+
+function cancelEdit(): void {
+  editingProduct.value = null
+  isSaving.value = false
+}
+
+async function updateProduct(): Promise<void> {
+  if (!editingProduct.value || isSaving.value) return
+
+  isSaving.value = true
+  try {
+    await mediaStore.updateProduct(editingProduct.value.id, {
+      name: editingProduct.value.name,
+      price: editingProduct.value.price,
+      image_url: editingProduct.value.image_url,
+      logo_url: editingProduct.value.logo_url,
+      active: editingProduct.value.active
+    })
+    cancelEdit()
+  } catch (error) {
+    console.error('Erro ao atualizar produto:', error)
+    alert('Erro ao atualizar produto. Tente novamente.')
+  } finally {
+    isSaving.value = false
   }
 }
 
@@ -241,7 +353,8 @@ async function toggleActive(product: Product): Promise<void> {
   try {
     await mediaStore.updateProduct(product.id, { active: !product.active })
   } catch (error) {
-    alert('Erro ao atualizar produto')
+    console.error('Erro ao atualizar produto:', error)
+    alert('Erro ao atualizar produto. Tente novamente.')
   }
 }
 
@@ -249,10 +362,6 @@ function confirmDelete(product: Product): void {
   if (confirm(`Deseja realmente excluir o produto ${product.name}?`)) {
     mediaStore.deleteProduct(product.id)
   }
-}
-
-function formatPrice(price: number): string {
-  return price.toFixed(2).replace('.', ',')
 }
 </script>
 
@@ -275,6 +384,32 @@ function formatPrice(price: number): string {
   color: #2c3e50;
 }
 
+.products-section {
+  margin-bottom: 50px;
+}
+
+.inactive-section {
+  opacity: 0.7;
+}
+
+.section-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  padding: 15px 20px;
+  border-radius: 10px;
+}
+
+.active-title {
+  background: #d4edda;
+  color: #155724;
+}
+
+.inactive-title {
+  background: #f8d7da;
+  color: #721c24;
+}
+
 .products-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -287,6 +422,16 @@ function formatPrice(price: number): string {
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
+  border: 3px solid transparent;
+}
+
+.product-card.active {
+  border-color: #27ae60;
+}
+
+.product-card.inactive {
+  border-color: #e74c3c;
+  opacity: 0.6;
 }
 
 .product-card:hover {
@@ -297,7 +442,7 @@ function formatPrice(price: number): string {
 .product-image {
   position: relative;
   width: 100%;
-  height: 250px;
+  height: 200px;
   overflow: hidden;
 }
 
@@ -307,28 +452,24 @@ function formatPrice(price: number): string {
   object-fit: cover;
 }
 
-.product-status {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  background: #e74c3c;
-  color: white;
-}
-
-.product-status.active {
-  background: #27ae60;
+.product-logo {
+  position: absolute !important;
+  bottom: 10px;
+  right: 10px;
+  width: 60px !important;
+  height: 60px !important;
+  object-fit: contain !important;
+  background: white;
+  border-radius: 10px;
+  padding: 8px;
 }
 
 .product-info {
   padding: 20px;
 }
 
-.product-info h3 {
-  font-size: 20px;
+.product-info h4 {
+  font-size: 18px;
   font-weight: 700;
   color: #2c3e50;
   margin-bottom: 10px;
@@ -347,11 +488,18 @@ function formatPrice(price: number): string {
   flex-wrap: wrap;
 }
 
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
+  color: #7f8c8d;
+  font-size: 18px;
+}
+
 .btn-primary,
 .btn-secondary,
-.btn-danger,
-.btn-edit {
-  padding: 10px 16px;
+.btn-danger {
+  padding: 10px 20px;
   border: none;
   border-radius: 8px;
   font-weight: 600;
@@ -359,6 +507,7 @@ function formatPrice(price: number): string {
   transition: all 0.3s ease;
   flex: 1;
   min-width: 80px;
+  font-size: 14px;
 }
 
 .btn-primary {
@@ -366,8 +515,13 @@ function formatPrice(price: number): string {
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: #5568d3;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn-secondary {
@@ -386,15 +540,6 @@ function formatPrice(price: number): string {
 
 .btn-danger:hover {
   background: #c0392b;
-}
-
-.btn-edit {
-  background: #3498db;
-  color: white;
-}
-
-.btn-edit:hover {
-  background: #2980b9;
 }
 
 .modal {
@@ -416,6 +561,8 @@ function formatPrice(price: number): string {
   padding: 40px;
   max-width: 500px;
   width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal-content h3 {

@@ -10,49 +10,137 @@
       </button>
     </div>
 
-    <div class="media-grid">
-      <div
-        v-for="media in mediaItems"
-        :key="media.id"
-        class="media-card"
-      >
-        <div class="media-image">
-          <img
-            :src="media.image_url"
-            :alt="media.title"
-          >
-          <div
-            class="media-status"
-            :class="{ active: media.active }"
-          >
-            {{ media.active ? 'Ativo' : 'Inativo' }}
+    <!-- CORREÇÃO 3 e 4: Separar ativos e inativos -->
+    <div class="media-section">
+      <h3 class="section-title active-title">
+        ✅ Mídias Ativas
+      </h3>
+      <div class="media-grid">
+        <div
+          v-for="media in activeMedia"
+          :key="media.id"
+          class="media-card active"
+        >
+          <div class="media-preview">
+            <img
+              v-if="media.type === 'image'"
+              :src="media.url"
+              :alt="media.title"
+            >
+            <video
+              v-else-if="media.type === 'video' && !isYouTubeOrVimeo(media.url)"
+              :src="media.url"
+              muted
+            />
+            <div
+              v-else
+              class="video-placeholder"
+            >
+              🎥 {{ getVideoSource(media.url) }}
+            </div>
+          </div>
+          <div class="media-info">
+            <h4>{{ media.title }}</h4>
+            <p class="media-duration">
+              Duração: {{ media.duration }}s
+            </p>
+            <p class="media-type">
+              Tipo: {{ media.type === 'video' ? 'Vídeo' : 'Imagem' }}
+            </p>
+            <div class="media-actions">
+              <button
+                class="btn-secondary"
+                @click="editMedia(media)"
+              >
+                ✏️ Editar
+              </button>
+              <button
+                class="btn-secondary"
+                @click="toggleActive(media)"
+              >
+                Desativar
+              </button>
+              <button
+                class="btn-danger"
+                @click="confirmDelete(media)"
+              >
+                Excluir
+              </button>
+            </div>
           </div>
         </div>
-        <div class="media-info">
-          <h3>{{ media.title }}</h3>
-          <p class="media-duration">
-            Duração: {{ media.duration }}s
-          </p>
-          <div class="media-actions">
-            <button
-              class="btn-secondary"
-              @click="editMedia(media)"
+        <div
+          v-if="activeMedia.length === 0"
+          class="empty-state"
+        >
+          <p>Nenhuma mídia ativa</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="media-section inactive-section">
+      <h3 class="section-title inactive-title">
+        ⏸️ Mídias Inativas
+      </h3>
+      <div class="media-grid">
+        <div
+          v-for="media in inactiveMedia"
+          :key="media.id"
+          class="media-card inactive"
+        >
+          <div class="media-preview">
+            <img
+              v-if="media.type === 'image'"
+              :src="media.url"
+              :alt="media.title"
             >
-              ✏️ Editar
-            </button>
-            <button
-              class="btn-secondary"
-              @click="toggleActive(media)"
+            <video
+              v-else-if="media.type === 'video' && !isYouTubeOrVimeo(media.url)"
+              :src="media.url"
+              muted
+            />
+            <div
+              v-else
+              class="video-placeholder"
             >
-              {{ media.active ? 'Desativar' : 'Ativar' }}
-            </button>
-            <button
-              class="btn-danger"
-              @click="confirmDelete(media)"
-            >
-              Excluir
-            </button>
+              🎥 {{ getVideoSource(media.url) }}
+            </div>
           </div>
+          <div class="media-info">
+            <h4>{{ media.title }}</h4>
+            <p class="media-duration">
+              Duração: {{ media.duration }}s
+            </p>
+            <p class="media-type">
+              Tipo: {{ media.type === 'video' ? 'Vídeo' : 'Imagem' }}
+            </p>
+            <div class="media-actions">
+              <button
+                class="btn-secondary"
+                @click="editMedia(media)"
+              >
+                ✏️ Editar
+              </button>
+              <button
+                class="btn-secondary"
+                @click="toggleActive(media)"
+              >
+                Ativar
+              </button>
+              <button
+                class="btn-danger"
+                @click="confirmDelete(media)"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+        <div
+          v-if="inactiveMedia.length === 0"
+          class="empty-state"
+        >
+          <p>Nenhuma mídia inativa</p>
         </div>
       </div>
     </div>
@@ -75,11 +163,12 @@
             >
           </div>
           <div class="form-group">
-            <label>URL da Imagem</label>
+            <label>URL (Imagem ou Vídeo)</label>
             <input
-              v-model="newMedia.image_url"
+              v-model="newMedia.url"
               type="url"
               required
+              placeholder="https://... (suporta YouTube, Vimeo, MP4, imagens)"
             >
           </div>
           <div class="form-group">
@@ -137,11 +226,12 @@
             >
           </div>
           <div class="form-group">
-            <label>URL da Imagem</label>
+            <label>URL (Imagem ou Vídeo)</label>
             <input
-              v-model="editingMedia.image_url"
+              v-model="editingMedia.url"
               type="url"
               required
+              placeholder="https://... (suporta YouTube, Vimeo, MP4, imagens)"
             >
           </div>
           <div class="form-group">
@@ -197,12 +287,29 @@ const isSaving = ref(false)
 
 const newMedia = ref({
   title: '',
-  image_url: '',
+  url: '',
   duration: 5,
   active: true
 })
 
-const mediaItems = computed(() => mediaStore.mediaItems)
+// CORREÇÃO 3: Filtrar mídias ativas e inativas
+const activeMedia = computed(() => 
+  mediaStore.mediaItems.filter(m => m.active)
+)
+
+const inactiveMedia = computed(() => 
+  mediaStore.mediaItems.filter(m => !m.active)
+)
+
+function isYouTubeOrVimeo(url: string): boolean {
+  return url.includes('youtube') || url.includes('youtu.be') || url.includes('vimeo')
+}
+
+function getVideoSource(url: string): string {
+  if (url.includes('youtube') || url.includes('youtu.be')) return 'YouTube'
+  if (url.includes('vimeo')) return 'Vimeo'
+  return 'Vídeo'
+}
 
 async function createMedia(): Promise<void> {
   try {
@@ -210,7 +317,7 @@ async function createMedia(): Promise<void> {
     showCreateModal.value = false
     newMedia.value = {
       title: '',
-      image_url: '',
+      url: '',
       duration: 5,
       active: true
     }
@@ -236,7 +343,7 @@ async function updateMedia(): Promise<void> {
   try {
     await mediaStore.updateMedia(editingMedia.value.id, {
       title: editingMedia.value.title,
-      image_url: editingMedia.value.image_url,
+      url: editingMedia.value.url,
       duration: editingMedia.value.duration,
       active: editingMedia.value.active
     })
@@ -284,6 +391,32 @@ function confirmDelete(media: Media): void {
   color: #2c3e50;
 }
 
+.media-section {
+  margin-bottom: 50px;
+}
+
+.inactive-section {
+  opacity: 0.7;
+}
+
+.section-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  padding: 15px 20px;
+  border-radius: 10px;
+}
+
+.active-title {
+  background: #d4edda;
+  color: #155724;
+}
+
+.inactive-title {
+  background: #f8d7da;
+  color: #721c24;
+}
+
 .media-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -296,6 +429,16 @@ function confirmDelete(media: Media): void {
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
+  border: 3px solid transparent;
+}
+
+.media-card.active {
+  border-color: #27ae60;
+}
+
+.media-card.inactive {
+  border-color: #e74c3c;
+  opacity: 0.6;
 }
 
 .media-card:hover {
@@ -303,56 +446,63 @@ function confirmDelete(media: Media): void {
   transform: translateY(-2px);
 }
 
-.media-image {
+.media-preview {
   position: relative;
   width: 100%;
   height: 200px;
   overflow: hidden;
+  background: #f0f0f0;
 }
 
-.media-image img {
+.media-preview img,
+.media-preview video {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.media-status {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  background: #e74c3c;
-  color: white;
-}
-
-.media-status.active {
-  background: #27ae60;
+.video-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #7f8c8d;
+  background: #ecf0f1;
 }
 
 .media-info {
   padding: 20px;
 }
 
-.media-info h3 {
-  font-size: 20px;
+.media-info h4 {
+  font-size: 18px;
   font-weight: 700;
   color: #2c3e50;
   margin-bottom: 10px;
 }
 
-.media-duration {
-  font-size: 16px;
+.media-duration,
+.media-type {
+  font-size: 14px;
   color: #7f8c8d;
-  margin-bottom: 20px;
+  margin-bottom: 5px;
 }
 
 .media-actions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 15px;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
+  color: #7f8c8d;
+  font-size: 18px;
 }
 
 .btn-primary,
@@ -365,7 +515,8 @@ function confirmDelete(media: Media): void {
   cursor: pointer;
   transition: all 0.3s ease;
   flex: 1;
-  min-width: 100px;
+  min-width: 80px;
+  font-size: 14px;
 }
 
 .btn-primary {

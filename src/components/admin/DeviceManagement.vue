@@ -48,6 +48,12 @@
             Editar
           </button>
           <button
+            class="btn-warning"
+            @click="confirmRemoveToken(device)"
+          >
+            🔓 Remover Token
+          </button>
+          <button
             class="btn-danger"
             @click="confirmDelete(device)"
           >
@@ -294,6 +300,24 @@ async function showQRCode(device: Device): Promise<void> {
   qrCodeUrl.value = await generateQRCode(device.code)
 }
 
+// NOVA FUNÇÃO: Remover token
+function confirmRemoveToken(device: Device): void {
+  if (confirm(`Deseja remover o token da TV ${device.name}?\n\nIsso irá:\n• Gerar um novo código de pareamento\n• Desconectar imediatamente a TV atual\n• Permitir que este token seja usado em outro dispositivo\n\nA TV precisará ser pareada novamente com o novo código.`)) {
+    removeToken(device)
+  }
+}
+
+async function removeToken(device: Device): Promise<void> {
+  try {
+    await devicesStore.removeToken(device.id)
+    await devicesStore.fetchDevices()
+    alert(`Token removido com sucesso!\n\nNovo código: ${devicesStore.devices.find(d => d.id === device.id)?.code}\n\nA TV foi desconectada e precisará ser pareada novamente.`)
+  } catch (error) {
+    console.error('Erro ao remover token:', error)
+    alert('Erro ao remover token. Tente novamente.')
+  }
+}
+
 function confirmDelete(device: Device): void {
   if (confirm(`Deseja realmente excluir a TV ${device.name}?`)) {
     devicesStore.deleteDevice(device.id)
@@ -409,11 +433,13 @@ watch(qrCodeDevice, (newVal) => {
 .device-actions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .btn-primary,
 .btn-secondary,
-.btn-danger {
+.btn-danger,
+.btn-warning {
   padding: 10px 20px;
   border: none;
   border-radius: 8px;
@@ -421,6 +447,8 @@ watch(qrCodeDevice, (newVal) => {
   cursor: pointer;
   transition: all 0.3s ease;
   flex: 1;
+  min-width: 80px;
+  font-size: 14px;
 }
 
 .btn-primary {
@@ -453,6 +481,15 @@ watch(qrCodeDevice, (newVal) => {
 
 .btn-danger:hover {
   background: #c0392b;
+}
+
+.btn-warning {
+  background: #f39c12;
+  color: white;
+}
+
+.btn-warning:hover {
+  background: #e67e22;
 }
 
 .modal {

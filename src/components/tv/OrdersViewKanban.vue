@@ -59,16 +59,17 @@ const deviceSettings = computed(() => {
   return devicesStore.getDeviceSettings(deviceId.value)
 })
 
+// CORREÇÃO 1: Ordenar por updated_at ascendente
 const readyOrders = computed(() => 
   ordersStore.orders
     .filter(order => order.status === 'READY')
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .sort((a, b) => new Date(a.updated_at || a.created_at).getTime() - new Date(b.updated_at || b.created_at).getTime())
 )
 
 const preparingOrders = computed(() => 
   ordersStore.orders
     .filter(order => order.status === 'PREPARING')
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .sort((a, b) => new Date(a.updated_at || a.created_at).getTime() - new Date(b.updated_at || b.created_at).getTime())
 )
 
 function formatCustomerName(name: string): string {
@@ -85,38 +86,42 @@ function formatCustomerName(name: string): string {
   width: 100vw;
   height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40px;
+  padding: 2vh;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .kanban-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 40px;
+  gap: 2vh;
   height: 100%;
+  max-height: 100%;
 }
 
 .kanban-column {
   display: flex;
   flex-direction: column;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 30px;
+  border-radius: 1.5vh;
+  padding: 2vh;
   backdrop-filter: blur(10px);
   border: 2px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
 }
 
 .column-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
+  margin-bottom: 2vh;
+  padding-bottom: 1.5vh;
   border-bottom: 3px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
 }
 
 .column-header h2 {
-  font-size: 48px;
+  font-size: clamp(24px, 4vh, 48px);
   font-weight: 800;
   color: white;
   margin: 0;
@@ -124,26 +129,28 @@ function formatCustomerName(name: string): string {
 }
 
 .column-header .count {
-  font-size: 48px;
+  font-size: clamp(24px, 4vh, 48px);
   font-weight: 800;
   color: white;
   background: rgba(255, 255, 255, 0.2);
-  padding: 10px 25px;
-  border-radius: 15px;
-  min-width: 80px;
+  padding: 1vh 2vh;
+  border-radius: 1vh;
+  min-width: 60px;
   text-align: center;
 }
 
 .orders-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 1.5vh;
+  padding-right: 0.5vh;
 }
 
 .orders-list::-webkit-scrollbar {
-  width: 12px;
+  width: 8px;
 }
 
 .orders-list::-webkit-scrollbar-track {
@@ -163,12 +170,14 @@ function formatCustomerName(name: string): string {
 .order-card {
   display: flex;
   align-items: center;
-  gap: 20px;
-  border-radius: 15px;
-  padding: 20px 30px;
+  gap: 1.5vh;
+  border-radius: 1vh;
+  padding: 1.5vh 2vh;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
   animation: slideIn 0.5s ease;
+  flex-shrink: 0;
+  min-height: 0;
 }
 
 @keyframes slideIn {
@@ -184,36 +193,44 @@ function formatCustomerName(name: string): string {
 
 .order-card.ready {
   background: #e8f8f5;
-  border-left: 8px solid #27ae60;
+  border-left: 6px solid #27ae60;
 }
 
 .order-card.preparing {
   background: #fff3cd;
-  border-left: 8px solid #f39c12;
+  border-left: 6px solid #f39c12;
 }
 
 .order-number {
-  font-size: 56px;
+  font-size: clamp(28px, 4.5vh, 56px);
   font-weight: 900;
   color: #2c3e50;
-  min-width: 120px;
+  min-width: clamp(60px, 10vw, 120px);
   text-align: left;
+  flex-shrink: 0;
 }
 
 .customer-name {
-  font-size: 56px;
+  font-size: clamp(28px, 4.5vh, 56px);
   font-weight: 900;
   color: #2c3e50;
   flex: 1;
   text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .store-name {
-  font-size: 36px;
+  font-size: clamp(20px, 3vh, 36px);
   font-weight: 700;
   color: #7f8c8d;
   text-align: right;
-  min-width: 150px;
+  min-width: clamp(80px, 12vw, 150px);
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .preparing-column {
@@ -222,5 +239,48 @@ function formatCustomerName(name: string): string {
 
 .ready-column {
   border: 3px solid #27ae60;
+}
+
+/* CORREÇÃO 4: Media queries para navegadores TCI e telas menores */
+@media (max-height: 768px) {
+  .orders-kanban {
+    padding: 1.5vh;
+  }
+  
+  .kanban-container {
+    gap: 1.5vh;
+  }
+  
+  .kanban-column {
+    padding: 1.5vh;
+  }
+  
+  .column-header {
+    margin-bottom: 1.5vh;
+    padding-bottom: 1vh;
+  }
+  
+  .orders-list {
+    gap: 1vh;
+  }
+  
+  .order-card {
+    padding: 1vh 1.5vh;
+    gap: 1vh;
+  }
+}
+
+@media (max-width: 1024px) {
+  .order-number {
+    font-size: clamp(24px, 3.5vh, 48px);
+  }
+  
+  .customer-name {
+    font-size: clamp(24px, 3.5vh, 48px);
+  }
+  
+  .store-name {
+    font-size: clamp(18px, 2.5vh, 32px);
+  }
 }
 </style>

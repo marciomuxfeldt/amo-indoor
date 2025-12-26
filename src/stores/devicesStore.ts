@@ -73,7 +73,24 @@ export const useDevicesStore = defineStore('devices', () => {
       throw new Error('Supabase não configurado')
     }
 
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase()
+    // Gerar código único
+    let code = ''
+    let isUnique = false
+    
+    while (!isUnique) {
+      code = Math.random().toString(36).substring(2, 8).toUpperCase()
+      
+      // Verificar se o código já existe
+      const { data: existingDevice } = await supabase
+        .from('app_8c186_devices')
+        .select('id')
+        .eq('code', code)
+        .single()
+      
+      if (!existingDevice) {
+        isUnique = true
+      }
+    }
 
     try {
       const { data, error: createError } = await supabase
@@ -81,7 +98,8 @@ export const useDevicesStore = defineStore('devices', () => {
         .insert([{
           code,
           name: deviceData.name || `TV ${code}`,
-          layout_type: deviceData.layout_type || 'orders-list'
+          layout_type: deviceData.layout_type || 'orders-list',
+          is_active: true
         }])
         .select()
         .single()
@@ -195,6 +213,63 @@ export const useDevicesStore = defineStore('devices', () => {
     }
   }
 
+  // NOVA FUNÇÃO: Remover token (limpar deviceId de TVs pareadas)
+  async function removeToken(deviceId: string): Promise<void> {
+    if (!isSupabaseConfigured) {
+      return
+    }
+
+    try {
+      // Gerar novo código único
+      let newCode = ''
+      let isUnique = false
+      
+      while (!isUnique) {
+        newCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+        
+        const { data: existingDevice } = await supabase
+          .from('app_8c186_devices')
+          .select('id')
+          .eq('code', newCode)
+          .single()
+        
+        if (!existingDevice) {
+          isUnique = true
+        }
+      }
+
+      // Atualizar device com novo código
+      const { error: updateError } = await supabase
+        .from('app_8c186_devices')
+        .update({ 
+          code: newCode,
+          is_online: false
+        })
+        .eq('id', deviceId)
+
+      if (updateError) throw updateError
+
+      // Atualizar localmente
+      const index = devices.value.findIndex(d => d.id === deviceId)
+      if (index !== -1) {
+        devices.value[index].code = newCode
+        devices.value[index].is_online = false
+      }
+
+      // Broadcast para forçar TVs a desconectar
+      await supabase
+        .channel('device-token-removal')
+        .send({
+          type: 'broadcast',
+          event: 'token-removed',
+          payload: { deviceId }
+        })
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to remove token'
+      throw err
+    }
+  }
+
   async function deleteDevice(deviceId: string): Promise<void> {
     if (!isSupabaseConfigured) {
       return
@@ -252,6 +327,7 @@ export const useDevicesStore = defineStore('devices', () => {
     createDevice,
     updateDevice,
     updateDeviceSettings,
+    removeToken,
     deleteDevice,
     getDeviceSettings,
     pairDevice

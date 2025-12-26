@@ -9,22 +9,27 @@ export const useOrdersStore = defineStore('orders', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  // CORREÇÃO 1: Ordenar READY e PREPARING primeiro, usando updated_at
   const displayOrders = computed(() => {
     const ready = orders.value
       .filter(order => order.status === 'READY')
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .sort((a, b) => new Date(a.updated_at || a.created_at).getTime() - new Date(b.updated_at || b.created_at).getTime())
     
     const preparing = orders.value
       .filter(order => order.status === 'PREPARING')
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .sort((a, b) => new Date(a.updated_at || a.created_at).getTime() - new Date(b.updated_at || b.created_at).getTime())
     
-    return [...ready, ...preparing]
+    const others = orders.value
+      .filter(order => order.status !== 'READY' && order.status !== 'PREPARING')
+      .sort((a, b) => new Date(a.updated_at || a.created_at).getTime() - new Date(b.updated_at || b.created_at).getTime())
+    
+    return [...ready, ...preparing, ...others]
   })
 
   const readyOrders = computed(() => 
     orders.value
       .filter(order => order.status === 'READY')
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .sort((a, b) => new Date(a.updated_at || a.created_at).getTime() - new Date(b.updated_at || b.created_at).getTime())
   )
 
   const pendingOrders = computed(() => 
@@ -85,28 +90,28 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
+  // CORREÇÃO 5: Recarregar do banco após update para evitar travamento
   async function updateOrder(orderId: string, updates: Partial<Order>): Promise<void> {
     if (!isSupabaseConfigured) {
       return
     }
 
-    const { error: updateError } = await supabase
-      .from('app_8c186_orders')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orderId)
+    try {
+      const { error: updateError } = await supabase
+        .from('app_8c186_orders')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
 
-    if (updateError) throw updateError
+      if (updateError) throw updateError
 
-    const index = orders.value.findIndex(o => o.id === orderId)
-    if (index !== -1) {
-      orders.value[index] = {
-        ...orders.value[index],
-        ...updates,
-        updated_at: new Date().toISOString()
-      }
+      // Recarregar todos os pedidos do banco
+      await fetchOrders()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update order'
+      throw err
     }
   }
 
@@ -115,17 +120,19 @@ export const useOrdersStore = defineStore('orders', () => {
       return
     }
 
-    const { error: updateError } = await supabase
-      .from('app_8c186_orders')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', orderId)
+    try {
+      const { error: updateError } = await supabase
+        .from('app_8c186_orders')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', orderId)
 
-    if (updateError) throw updateError
+      if (updateError) throw updateError
 
-    const index = orders.value.findIndex(o => o.id === orderId)
-    if (index !== -1) {
-      orders.value[index].status = status
-      orders.value[index].updated_at = new Date().toISOString()
+      // Recarregar todos os pedidos do banco
+      await fetchOrders()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update order status'
+      throw err
     }
   }
 

@@ -3,8 +3,6 @@ import TvDisplay from '@/views/TvDisplay.vue'
 import TvPairing from '@/views/TvPairing.vue'
 import AdminDashboard from '@/views/AdminDashboard.vue'
 import AdminLogin from '@/views/admin/AdminLogin.vue'
-import MediaManagement from '@/views/admin/MediaManagement.vue'
-import ProductsManagement from '@/views/admin/ProductsManagement.vue'
 import { authGuard, loginGuard } from '@/router/guards/authGuard'
 
 const router = createRouter({
@@ -66,13 +64,13 @@ const router = createRouter({
         {
           path: 'products',
           name: 'admin-products',
-          component: ProductsManagement,
+          component: () => import('@/components/admin/ProductManagement.vue'),
           meta: { requiresAuth: true }
         },
         {
           path: 'media',
           name: 'admin-media',
-          component: MediaManagement,
+          component: () => import('@/components/admin/MediaManagement.vue'),
           meta: { requiresAuth: true }
         },
         {

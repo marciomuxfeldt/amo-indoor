@@ -47,7 +47,7 @@
     >
       <component
         :is="OrdersComponent"
-        v-if="currentContentType === 'orders' && !configError"
+        v-if="currentContentType === 'orders' && !configError && hasOrders"
         key="orders"
       />
     </transition>
@@ -82,6 +82,7 @@ import { useDevicesStore } from '@/stores/devicesStore'
 import { storage } from '@/services/storage'
 import { watchdog } from '@/services/watchdog'
 import { heartbeat } from '@/services/heartbeat'
+import { supabase } from '@/services/supabase'
 import OrdersViewList from '@/components/tv/OrdersViewList.vue'
 import OrdersViewKanban from '@/components/tv/OrdersViewKanban.vue'
 import ProductsCarousel from '@/components/tv/ProductsCarousel.vue'
@@ -102,6 +103,7 @@ const configError = ref<string | null>(null)
 const isInitialized = ref(false)
 let rotationInterval: number | null = null
 let fullscreenCheckInterval: number | null = null
+let tokenRemovalChannel: any = null
 
 const deviceId = computed(() => storage.getLocalStorage<string>('deviceId'))
 
@@ -142,14 +144,12 @@ const rotationSequence = computed(() => {
 
     case 'orders-only':
     case 'orders-only-kanban':
-      // APENAS pedidos, sem produtos ou mídias
       if (hasOrders.value) {
         sequence.push('orders')
       }
       break
 
     case 'orders-kanban':
-      // Kanban com rotação de produtos e mídias
       if (!deviceSettings.value) {
         if (hasOrders.value) sequence.push('orders')
         if (hasProducts.value) sequence.push('products')
@@ -214,10 +214,7 @@ function rotateContent(): void {
   rotationIndex.value = (rotationIndex.value + 1) % rotationSequence.value.length
   currentContentType.value = rotationSequence.value[rotationIndex.value]
   
-  // Reforçar fullscreen ao trocar de conteúdo
-  if (currentContentType.value === 'orders') {
-    enterFullscreen()
-  }
+  enterFullscreen()
 }
 
 function startRotation(): void {
@@ -230,6 +227,7 @@ function startRotation(): void {
 
   if (rotationSequence.value.length === 1) {
     currentContentType.value = rotationSequence.value[0]
+    enterFullscreen()
     return
   }
 
@@ -247,7 +245,6 @@ function isFullscreen(): boolean {
 }
 
 function enterFullscreen(): void {
-  // Se já está em fullscreen, não fazer nada
   if (isFullscreen()) {
     return
   }
@@ -268,13 +265,48 @@ function enterFullscreen(): void {
 }
 
 function startFullscreenMonitor(): void {
-  // Verificar a cada 30 segundos se saiu do fullscreen
   fullscreenCheckInterval = window.setInterval(() => {
     if (!isFullscreen()) {
       console.log('Detectado saída do fullscreen, reativando...')
       enterFullscreen()
     }
-  }, 30000) // 30 segundos
+  }, 30000)
+}
+
+// NOVA FUNÇÃO: Escutar remoção de token
+function subscribeToTokenRemoval(): void {
+  const currentDeviceId = deviceId.value
+  if (!currentDeviceId) return
+
+  tokenRemovalChannel = supabase
+    .channel('device-token-removal')
+    .on('broadcast', { event: 'token-removed' }, (payload) => {
+      if (payload.payload.deviceId === currentDeviceId) {
+        console.log('Token removido pelo admin, desconectando...')
+        handleTokenRemoved()
+      }
+    })
+    .subscribe()
+}
+
+function handleTokenRemoved(): void {
+  // Parar todos os serviços
+  if (rotationInterval) clearInterval(rotationInterval)
+  if (fullscreenCheckInterval) clearInterval(fullscreenCheckInterval)
+  heartbeat.stop()
+  watchdog.stop()
+
+  // Limpar localStorage
+  storage.removeLocalStorage('deviceId')
+  storage.removeLocalStorage('deviceCode')
+
+  // Mostrar mensagem de erro
+  configError.value = 'Token removido pelo administrador.\n\nEsta TV foi desconectada e precisa ser pareada novamente.\n\nRedirecionando para tela de pareamento em 5 segundos...'
+
+  // Redirecionar para pareamento
+  setTimeout(() => {
+    router.push({ name: 'tv-pairing' })
+  }, 5000)
 }
 
 async function retryConfiguration(): Promise<void> {
@@ -285,6 +317,7 @@ async function retryConfiguration(): Promise<void> {
 
 function unpairDevice(): void {
   storage.removeLocalStorage('deviceId')
+  storage.removeLocalStorage('deviceCode')
   router.push({ name: 'tv-pairing' })
 }
 
@@ -305,7 +338,6 @@ function handleKeyPress(event: KeyboardEvent): void {
 }
 
 function handleFullscreenChange(): void {
-  // Quando sair do fullscreen (por qualquer motivo), tentar reentrar após 2 segundos
   if (!isFullscreen()) {
     setTimeout(() => {
       enterFullscreen()
@@ -315,6 +347,7 @@ function handleFullscreenChange(): void {
 
 async function initialize(): Promise<void> {
   const storedDeviceId = storage.getLocalStorage<string>('deviceId')
+  const storedDeviceCode = storage.getLocalStorage<string>('deviceCode')
   
   if (!storedDeviceId) {
     router.push({ name: 'tv-pairing' })
@@ -323,6 +356,7 @@ async function initialize(): Promise<void> {
 
   if (!isValidUUID(storedDeviceId)) {
     storage.removeLocalStorage('deviceId')
+    storage.removeLocalStorage('deviceCode')
     router.push({ name: 'tv-pairing' })
     return
   }
@@ -350,6 +384,7 @@ async function initialize(): Promise<void> {
     if (!device.value) {
       const availableDevices = devicesStore.devices.map(d => `${d.name} (${d.id})`).join(', ')
       storage.removeLocalStorage('deviceId')
+      storage.removeLocalStorage('deviceCode')
       
       configError.value = `Device com ID "${storedDeviceId}" não encontrado no banco de dados.\n\nDevices disponíveis: ${availableDevices || 'nenhum'}\n\nRedirecionando para pareamento em 3 segundos...`
       
@@ -357,6 +392,25 @@ async function initialize(): Promise<void> {
         router.push({ name: 'tv-pairing' })
       }, 3000)
       return
+    }
+
+    // VERIFICAÇÃO CRÍTICA: Comparar código salvo com código atual do device
+    if (storedDeviceCode && device.value.code !== storedDeviceCode) {
+      console.log(`Token mudou! Salvo: ${storedDeviceCode}, Atual: ${device.value.code}`)
+      storage.removeLocalStorage('deviceId')
+      storage.removeLocalStorage('deviceCode')
+      
+      configError.value = `Token desta TV foi alterado pelo administrador.\n\nCódigo anterior: ${storedDeviceCode}\nNovo código: ${device.value.code}\n\nEsta TV precisa ser pareada novamente com o novo código.\n\nRedirecionando para tela de pareamento em 5 segundos...`
+      
+      setTimeout(() => {
+        router.push({ name: 'tv-pairing' })
+      }, 5000)
+      return
+    }
+
+    // Salvar o código atual para verificação futura
+    if (!storedDeviceCode) {
+      storage.setLocalStorage('deviceCode', device.value.code)
     }
 
     const layoutType = device.value.layout_type
@@ -378,6 +432,7 @@ async function initialize(): Promise<void> {
     ordersStore.subscribeToOrders()
     mediaStore.subscribeToProducts()
     mediaStore.subscribeToMedia()
+    subscribeToTokenRemoval()
     heartbeat.start(storedDeviceId)
     watchdog.start()
     enterFullscreen()
@@ -403,7 +458,6 @@ watch(hasOrders, (newValue) => {
   if (newValue && rotationSequence.value.length > 0) {
     currentContentType.value = 'orders'
     rotationIndex.value = 0
-    // Reforçar fullscreen quando novos pedidos aparecem
     enterFullscreen()
   }
 })
@@ -422,7 +476,6 @@ onMounted(() => {
   initialize()
   window.addEventListener('keydown', handleKeyPress)
   
-  // Escutar eventos de mudança de fullscreen
   document.addEventListener('fullscreenchange', handleFullscreenChange)
   document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
   document.addEventListener('mozfullscreenchange', handleFullscreenChange)
@@ -436,11 +489,13 @@ onUnmounted(() => {
   if (fullscreenCheckInterval) {
     clearInterval(fullscreenCheckInterval)
   }
+  if (tokenRemovalChannel) {
+    tokenRemovalChannel.unsubscribe()
+  }
   heartbeat.stop()
   watchdog.stop()
   window.removeEventListener('keydown', handleKeyPress)
   
-  // Remover listeners de fullscreen
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
   document.removeEventListener('mozfullscreenchange', handleFullscreenChange)
@@ -457,7 +512,6 @@ onUnmounted(() => {
   position: relative;
 }
 
-/* Botão Admin - Discreto, aparece ao passar o mouse */
 .admin-button {
   position: fixed;
   bottom: 20px;
@@ -487,7 +541,6 @@ onUnmounted(() => {
   box-shadow: 0 4px 20px rgba(255, 255, 255, 0.3);
 }
 
-/* Mostrar o botão quando o mouse está no canto inferior direito */
 .tv-display:hover .admin-button {
   opacity: 0.3;
 }

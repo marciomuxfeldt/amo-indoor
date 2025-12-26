@@ -189,9 +189,10 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 1.5vh 1.5vw;
   overflow: hidden;
   position: relative;
+  box-sizing: border-box;
 }
 
 .no-orders {
@@ -201,26 +202,27 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
   justify-content: center;
   text-align: center;
   color: white;
-  font-size: 48px;
+  font-size: clamp(32px, 4vh, 48px);
   font-weight: 300;
 }
 
 .orders-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 1vh;
   width: 100%;
   flex: 1;
   max-width: 1800px;
   margin: 0 auto;
   overflow-y: auto;
-  padding-right: 10px;
-  margin-bottom: 100px;
+  overflow-x: hidden;
+  padding-right: 0.5vw;
+  margin-bottom: 8vh;
 }
 
 /* Scrollbar personalizada */
 .orders-list::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .orders-list::-webkit-scrollbar-track {
@@ -240,15 +242,15 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
 .list-header {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 15px 25px;
+  border-radius: 1vh;
+  padding: 1.5vh 2vw;
   text-align: center;
-  margin-bottom: 10px;
+  margin-bottom: 1vh;
   flex-shrink: 0;
 }
 
 .list-header h1 {
-  font-size: 40px;
+  font-size: clamp(28px, 3.5vh, 40px);
   font-weight: 800;
   color: white;
   text-transform: uppercase;
@@ -259,14 +261,15 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
 
 .order-row {
   display: grid;
-  grid-template-columns: 140px 1fr 1fr 240px;
-  gap: 20px;
+  grid-template-columns: minmax(100px, 140px) minmax(150px, 1fr) minmax(150px, 1fr) minmax(180px, 240px);
+  gap: 1.5vw;
   align-items: center;
-  border-radius: 12px;
-  padding: 16px 25px;
+  border-radius: 1vh;
+  padding: 1.5vh 2vw;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
   flex-shrink: 0;
+  min-height: 0;
 }
 
 .order-row:hover {
@@ -302,7 +305,7 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
 
 /* Separador simples entre PRONTOS e PREPARANDO */
 .status-separator {
-  height: 20px;
+  height: 2vh;
   flex-shrink: 0;
 }
 
@@ -312,11 +315,12 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
 .status-col {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.3vh;
+  min-width: 0;
 }
 
 .label {
-  font-size: 22px;
+  font-size: clamp(14px, 1.8vh, 22px);
   font-weight: 600;
   color: #7f8c8d;
   text-transform: uppercase;
@@ -324,10 +328,13 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
 }
 
 .value {
-  font-size: 56px;
+  font-size: clamp(32px, 4.5vh, 56px);
   font-weight: 800;
   color: #2c3e50;
   line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .order-number-col .value {
@@ -336,12 +343,10 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
 
 .customer-name-col .value {
   color: #2a5298;
-  word-break: break-word;
 }
 
 .store-name-col .value {
   color: #2a5298;
-  word-break: break-word;
 }
 
 .status-col {
@@ -352,11 +357,11 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 36px;
+  gap: 0.5vh;
+  font-size: clamp(20px, 3vh, 36px);
   font-weight: 700;
-  padding: 12px 20px;
-  border-radius: 10px;
+  padding: 1vh 1.5vw;
+  border-radius: 1vh;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
@@ -364,116 +369,69 @@ watch(() => ordersStore.displayOrders, (newOrders, oldOrders) => {
 
 .logo-container {
   position: fixed;
-  bottom: 20px;
+  bottom: 2vh;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
 }
 
 .company-logo {
-  max-height: 70px;
-  max-width: 250px;
+  max-height: clamp(50px, 6vh, 70px);
+  max-width: clamp(150px, 20vw, 250px);
   object-fit: contain;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
 }
 
+/* CORREÇÃO 4: Media queries específicas para navegadores TCI e telas menores */
+@media (max-height: 768px) {
+  .orders-view-list {
+    padding: 1vh 1vw;
+  }
+  
+  .orders-list {
+    gap: 0.8vh;
+    margin-bottom: 6vh;
+  }
+  
+  .list-header {
+    padding: 1vh 1.5vw;
+    margin-bottom: 0.8vh;
+  }
+  
+  .order-row {
+    padding: 1vh 1.5vw;
+    gap: 1vw;
+  }
+  
+  .status-separator {
+    height: 1.5vh;
+  }
+}
+
 @media (max-width: 1400px) {
   .order-row {
-    grid-template-columns: 120px 1fr 1fr 200px;
-    gap: 15px;
-    padding: 14px 20px;
-  }
-
-  .list-header h1 {
-    font-size: 36px;
-  }
-
-  .label {
-    font-size: 18px;
-  }
-
-  .value {
-    font-size: 48px;
-  }
-
-  .status-badge {
-    font-size: 32px;
-    padding: 10px 18px;
-  }
-
-  .status-separator {
-    height: 15px;
-  }
-
-  .company-logo {
-    max-height: 60px;
-    max-width: 200px;
+    grid-template-columns: minmax(80px, 120px) minmax(120px, 1fr) minmax(120px, 1fr) minmax(150px, 200px);
+    gap: 1.2vw;
+    padding: 1.2vh 1.5vw;
   }
 }
 
 @media (max-width: 1000px) {
   .order-row {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 1vh;
   }
 
   .status-col {
     align-items: flex-start;
   }
-
-  .list-header h1 {
-    font-size: 32px;
-  }
-
-  .label {
-    font-size: 16px;
-  }
-
-  .value {
-    font-size: 44px;
-  }
-
-  .status-badge {
-    font-size: 30px;
-    padding: 10px 16px;
-  }
-
-  .status-separator {
-    height: 12px;
-  }
 }
 
 /* Para telas muito grandes */
 @media (min-width: 1920px) {
-  .list-header h1 {
-    font-size: 48px;
-  }
-
   .order-row {
-    padding: 18px 30px;
+    padding: 1.8vh 2.5vw;
     grid-template-columns: 160px 1fr 1fr 280px;
-  }
-
-  .label {
-    font-size: 24px;
-  }
-
-  .value {
-    font-size: 64px;
-  }
-
-  .status-badge {
-    font-size: 40px;
-    padding: 14px 24px;
-  }
-
-  .status-separator {
-    height: 25px;
-  }
-
-  .company-logo {
-    max-height: 80px;
-    max-width: 300px;
   }
 }
 </style>

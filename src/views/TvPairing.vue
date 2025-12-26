@@ -96,6 +96,7 @@ const error = ref('')
 const success = ref(false)
 const showConfirmModal = ref(false)
 const pendingDeviceId = ref<string | null>(null)
+const pendingDeviceCode = ref<string | null>(null)
 
 // Informações do device atual
 const currentDeviceId = computed(() => storage.getLocalStorage<string>('deviceId'))
@@ -158,13 +159,14 @@ async function pairDevice(): Promise<void> {
       }
       
       pendingDeviceId.value = device.id
+      pendingDeviceCode.value = device.code
       showConfirmModal.value = true
       loading.value = false
       return
     }
 
     // Pareamento normal (primeira vez ou mesmo device)
-    await completePairing(device.id)
+    await completePairing(device.id, device.code)
   } catch (err) {
     if (err instanceof Error && err.message.includes('Timeout')) {
       error.value = 'Pareamento demorou muito tempo. Verifique sua conexão e tente novamente.'
@@ -176,15 +178,17 @@ async function pairDevice(): Promise<void> {
   }
 }
 
-async function completePairing(deviceId: string): Promise<void> {
+async function completePairing(deviceId: string, deviceCode: string): Promise<void> {
   // Limpar qualquer estado anterior
   storage.removeLocalStorage('deviceId')
+  storage.removeLocalStorage('deviceCode')
   
   // Aguardar um momento para garantir que o localStorage foi limpo
   await new Promise(resolve => setTimeout(resolve, 100))
   
-  // Salvar novo deviceId
+  // Salvar novo deviceId e deviceCode
   storage.setLocalStorage('deviceId', deviceId)
+  storage.setLocalStorage('deviceCode', deviceCode)
   
   success.value = true
   loading.value = false
@@ -199,14 +203,15 @@ function confirmRepair(): void {
   showConfirmModal.value = false
   loading.value = true
   
-  if (pendingDeviceId.value) {
-    completePairing(pendingDeviceId.value)
+  if (pendingDeviceId.value && pendingDeviceCode.value) {
+    completePairing(pendingDeviceId.value, pendingDeviceCode.value)
   }
 }
 
 function cancelRepair(): void {
   showConfirmModal.value = false
   pendingDeviceId.value = null
+  pendingDeviceCode.value = null
   code.value = ''
   loading.value = false
   error.value = 'Pareamento cancelado. A TV permanece com o device atual.'
