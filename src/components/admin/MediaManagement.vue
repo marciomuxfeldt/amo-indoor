@@ -26,12 +26,27 @@
               v-if="media.type === 'image'"
               :src="media.url"
               :alt="media.title"
+              @error="onImageError"
             >
             <video
               v-else-if="media.type === 'video' && !isYouTubeOrVimeo(media.url)"
               :src="media.url"
               muted
             />
+            <img
+              v-else-if="isYouTube(media.url)"
+              :src="getYouTubeThumbnail(media.url)"
+              :alt="media.title"
+              class="video-thumbnail"
+              @error="onImageError"
+            >
+            <img
+              v-else-if="isVimeo(media.url)"
+              :src="getVimeoThumbnail()"
+              :alt="media.title"
+              class="video-thumbnail"
+              @error="onImageError"
+            >
             <div
               v-else
               class="video-placeholder"
@@ -93,12 +108,27 @@
               v-if="media.type === 'image'"
               :src="media.url"
               :alt="media.title"
+              @error="onImageError"
             >
             <video
               v-else-if="media.type === 'video' && !isYouTubeOrVimeo(media.url)"
               :src="media.url"
               muted
             />
+            <img
+              v-else-if="isYouTube(media.url)"
+              :src="getYouTubeThumbnail(media.url)"
+              :alt="media.title"
+              class="video-thumbnail"
+              @error="onImageError"
+            >
+            <img
+              v-else-if="isVimeo(media.url)"
+              :src="getVimeoThumbnail()"
+              :alt="media.title"
+              class="video-thumbnail"
+              @error="onImageError"
+            >
             <div
               v-else
               class="video-placeholder"
@@ -305,10 +335,43 @@ function isYouTubeOrVimeo(url: string): boolean {
   return url.includes('youtube') || url.includes('youtu.be') || url.includes('vimeo')
 }
 
+function isYouTube(url: string): boolean {
+  return url.includes('youtube.com') || url.includes('youtu.be')
+}
+
+function isVimeo(url: string): boolean {
+  return url.includes('vimeo.com')
+}
+
+function getYouTubeThumbnail(url: string): string {
+  let videoId = ''
+  
+  if (url.includes('youtube.com/watch?v=')) {
+    videoId = url.split('v=')[1]?.split('&')[0] || ''
+  } else if (url.includes('youtu.be/')) {
+    videoId = url.split('youtu.be/')[1]?.split('?')[0] || ''
+  }
+  
+  // Use maxresdefault for best quality, fallback to hqdefault
+  return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+}
+
+function getVimeoThumbnail(): string {
+  // Vimeo thumbnails require API call, use placeholder for now
+  // In production, you'd fetch from https://vimeo.com/api/v2/video/{video_id}.json
+  return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%231ab7ea" width="200" height="150"/%3E%3Ctext fill="%23fff" font-family="Arial" font-size="20" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EVimeo%3C/text%3E%3C/svg%3E'
+}
+
 function getVideoSource(url: string): string {
   if (url.includes('youtube') || url.includes('youtu.be')) return 'YouTube'
   if (url.includes('vimeo')) return 'Vimeo'
   return 'Vídeo'
+}
+
+function onImageError(event: Event): void {
+  const img = event.target as HTMLImageElement
+  // Fallback to placeholder on error
+  img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23ddd" width="200" height="150"/%3E%3Ctext fill="%23999" font-family="Arial" font-size="16" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EImagem indisponível%3C/text%3E%3C/svg%3E'
 }
 
 async function createMedia(): Promise<void> {
@@ -456,6 +519,12 @@ function confirmDelete(media: Media): void {
 
 .media-preview img,
 .media-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-thumbnail {
   width: 100%;
   height: 100%;
   object-fit: cover;

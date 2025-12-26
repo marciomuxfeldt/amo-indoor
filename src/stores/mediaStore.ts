@@ -65,17 +65,25 @@ export const useMediaStore = defineStore('media', () => {
       }
 
       mediaItems.value = (data || []).map(item => {
-        const url = item.video_url || item.image_url
+        const url = item.video_url || item.image_url || ''
         const type = detectMediaType(url)
+        const active = item.active ?? item.is_active ?? true
         
         return {
           ...item,
           type,
-          url
+          url,
+          active,
+          video_url: item.video_url,
+          image_url: item.image_url
         }
       })
+      
+      console.log('Media carregada:', mediaItems.value.length, 'itens')
+      console.log('Media ativa:', mediaItems.value.filter(m => m.active).length, 'itens')
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch media'
+      console.error('Erro ao carregar media:', err)
     } finally {
       loading.value = false
     }
@@ -207,13 +215,15 @@ export const useMediaStore = defineStore('media', () => {
         throw new Error('No data returned from Supabase')
       }
 
-      const url = data.video_url || data.image_url
+      const url = data.video_url || data.image_url || ''
       const type = detectMediaType(url)
+      const active = data.active ?? data.is_active ?? true
       
       const mediaItem = {
         ...data,
         type,
-        url
+        url,
+        active
       }
       
       mediaItems.value.push(mediaItem)
@@ -251,13 +261,15 @@ export const useMediaStore = defineStore('media', () => {
       if (data) {
         const index = mediaItems.value.findIndex((m: Media) => m.id === mediaId)
         if (index !== -1) {
-          const url = data.video_url || data.image_url
+          const url = data.video_url || data.image_url || ''
           const type = detectMediaType(url)
+          const active = data.active ?? data.is_active ?? true
           
           mediaItems.value[index] = {
             ...data,
             type,
-            url
+            url,
+            active
           }
         }
       }
@@ -323,14 +335,16 @@ export const useMediaStore = defineStore('media', () => {
             const item = payload.new as Media
             const url = (item.video_url || item.image_url) ?? ''
             const type = detectMediaType(url)
-            mediaItems.value.push({ ...item, type, url })
+            const active = item.active ?? item.is_active ?? true
+            mediaItems.value.push({ ...item, type, url, active })
           } else if (payload.eventType === 'UPDATE') {
             const item = payload.new as Media
             const index = mediaItems.value.findIndex((m: Media) => m.id === item.id)
             if (index !== -1) {
               const url = (item.video_url || item.image_url) ?? ''
               const type = detectMediaType(url)
-              mediaItems.value[index] = { ...item, type, url }
+              const active = item.active ?? item.is_active ?? true
+              mediaItems.value[index] = { ...item, type, url, active }
             }
           } else if (payload.eventType === 'DELETE') {
             mediaItems.value = mediaItems.value.filter((m: Media) => m.id !== payload.old.id)
