@@ -171,6 +171,10 @@ onUnmounted(() => {
 .carousel-container {
   width: 100%;
   max-width: 1200px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   position: relative;
 }
 
@@ -179,11 +183,15 @@ onUnmounted(() => {
   border-radius: 30px;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
 }
 
 .product-image {
   width: 100%;
-  height: 600px;
+  flex: 0 0 auto;
+  max-height: 60vh;
   overflow: hidden;
   position: relative;
   background: #f0f0f0;
@@ -209,21 +217,33 @@ onUnmounted(() => {
 }
 
 .product-info {
-  padding: 50px;
+  padding: 40px 50px;
   text-align: center;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 180px;
 }
 
 .product-name {
   font-size: 56px;
   font-weight: 700;
   color: #2c3e50;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .product-price {
   font-size: 64px;
   font-weight: 800;
   color: #27ae60;
+  line-height: 1;
 }
 
 .carousel-indicators {
@@ -231,6 +251,7 @@ onUnmounted(() => {
   justify-content: center;
   gap: 15px;
   margin-top: 30px;
+  flex-shrink: 0;
 }
 
 .indicator {
@@ -259,5 +280,49 @@ onUnmounted(() => {
 .slide-leave-to {
   opacity: 0;
   transform: translateX(-100px);
+}
+
+/* Ajustes para telas menores */
+@media (max-height: 900px) {
+  .product-image {
+    max-height: 55vh;
+  }
+  
+  .product-name {
+    font-size: 48px;
+  }
+  
+  .product-price {
+    font-size: 56px;
+  }
+  
+  .product-info {
+    padding: 30px 40px;
+    min-height: 160px;
+  }
+}
+
+@media (max-height: 768px) {
+  .product-image {
+    max-height: 50vh;
+  }
+  
+  .product-name {
+    font-size: 42px;
+  }
+  
+  .product-price {
+    font-size: 48px;
+  }
+  
+  .product-info {
+    padding: 25px 35px;
+    min-height: 140px;
+  }
+  
+  .restaurant-logo {
+    width: 100px !important;
+    height: 100px !important;
+  }
 }
 </style>
